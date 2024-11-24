@@ -15,7 +15,8 @@ const color = mibu.color;
 const time = @import("time.zig");
 
 const xoff = 3;
-const yoff = 3;
+const yoff = 2;
+var mini = false;
 const label_extra_w = 3;
 
 const COLUMN_LABEL_START = 'a';
@@ -33,15 +34,15 @@ const PAWN_EXPLORE_DIST = 2;    // how many squares away to allow interactive ex
 const MAXMOVES = (5*5) + 2*(GRIDSIZE-1)*(GRIDSIZE-1);   // largest possible number of legal moves, pawnmoves + fencemoves
 const MAXPATH = GRIDSIZE*GRIDSIZE;  // largest possible path a pawn could take to reach goal (overkill)
 
-const pawnColour = [NUM_PAWNS]color.Color{.red, .magenta};
+const pawnColour = [NUM_PAWNS]color.Color{.yellow, .magenta};
 const fenceColour:color.Color = .white;
 
 var playForever = false;
-
 var players:[NUM_PAWNS]PlayerType = .{.Human, .Machine};
-//    const players:[NUM_PAWNS]PlayerType = .{.Human, .Human};
-//    const players:[NUM_PAWNS]PlayerType = .{.Human, .Machine};
-//const players:[NUM_PAWNS]PlayerType = .{.Machine, .Machine};
+
+// for holding last turn string
+var lastTurnBuf:[32]u8 = undefined;
+var lastTurnStr:?[]u8 = null;
 
 var wins:[NUM_PAWNS]usize = .{0,0};
 
@@ -996,8 +997,16 @@ fn paintString(display: *Display, bg:color.Color, fg:color.Color, bold:bool, xpo
 fn drawStats(display:*Display, gs:*const GameState, pi:usize) !void {
     var buf: [32]u8 = undefined;
 
-    const statsXoff = 41;
-    const statsYoff = 3;
+    var statsXoff:usize = 0;
+    var statsYoff:usize = 0;
+
+    if (mini) {
+        statsXoff = 41;
+        statsYoff = 3;
+    } else {
+        statsXoff = 59;
+        statsYoff = 2;
+    }
 
     switch(players[0]) {
         .Human => try paintString(display, .black, .white, pi==0, statsXoff, statsYoff, try std.fmt.bufPrint(&buf, "Player 1: Human", .{})),
@@ -1014,102 +1023,192 @@ fn drawStats(display:*Display, gs:*const GameState, pi:usize) !void {
     try paintString(display, .black, .white, pi==1, statsXoff, statsYoff+6, try std.fmt.bufPrint(&buf, "Fences: {d}", .{NUM_FENCES_PER_PLAYER - gs.pawns[1].numFences}));
 
     if (gs.hasWon(0)) {
-        try paintString(display, .black, .white, true, statsXoff, statsYoff+15, try std.fmt.bufPrint(&buf, "Player1 win", .{}));
+        try paintString(display, .black, .white, true, statsXoff, statsYoff+15, try std.fmt.bufPrint(&buf, "Player1 won", .{}));
         try paintString(display, .black, .white, true, statsXoff, statsYoff+16, try std.fmt.bufPrint(&buf, "Player2 lost", .{}));
     }
     if (gs.hasWon(1)) {
         try paintString(display, .black, .white, true, statsXoff, statsYoff+15, try std.fmt.bufPrint(&buf, "Player1 lost", .{}));
-        try paintString(display, .black, .white, true, statsXoff, statsYoff+16, try std.fmt.bufPrint(&buf, "Player2 win", .{}));
+        try paintString(display, .black, .white, true, statsXoff, statsYoff+16, try std.fmt.bufPrint(&buf, "Player2 won", .{}));
     }
 
     if (players[0] == .Human or players[1] == .Human) {
         try paintString(display, .black, .white, true, statsXoff, statsYoff+8, try std.fmt.bufPrint(&buf, "q - quit", .{}));
-        try paintString(display, .black, .white, true, statsXoff, statsYoff+9, try std.fmt.bufPrint(&buf, "cursors - set position", .{}));
+        try paintString(display, .black, .white, true, statsXoff, statsYoff+9, try std.fmt.bufPrint(&buf, "cursors - set pos", .{}));
         try paintString(display, .black, .white, true, statsXoff, statsYoff+10, try std.fmt.bufPrint(&buf, "enter - confirm", .{}));
         try paintString(display, .black, .white, true, statsXoff, statsYoff+11, try std.fmt.bufPrint(&buf, "tab - fence/pawn", .{}));
         try paintString(display, .black, .white, true, statsXoff, statsYoff+12, try std.fmt.bufPrint(&buf, "space - rotate fence", .{}));
     }
+
+    if (lastTurnStr) |s| {
+        try paintString(display, .black, .white, true, statsXoff, statsYoff+14, try std.fmt.bufPrint(&buf, "{s}", .{s}));
+    }
 }
 
 fn drawBoard(display:*Display) void {
-    // draw squares
-    for (0..GRIDSIZE) |x| {
-        for (0..GRIDSIZE) |y| {
-            if (x == 0) {
-                // row labels
-                try display.setPixel(xoff + 4*x, yoff + 2*y, .{ .fg = .white, .bg = .blue, .c = ROW_LABEL_START + @as(u8, @intCast(y)), .bold = true });
-            }
-
-            // pawn squares
-            try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
-            try display.setPixel(xoff + 4*x+1 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
-
-            if (true) {
-                if (x != GRIDSIZE-1) {
-                    try display.setPixel(xoff + 4*x+2 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
-                    try display.setPixel(xoff + 4*x+3 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+    if (mini) {
+        // draw squares
+        for (0..GRIDSIZE) |x| {
+            for (0..GRIDSIZE) |y| {
+                if (x == 0) {
+                    // row labels
+                    try display.setPixel(xoff + 4*x, yoff + 2*y, .{ .fg = .white, .bg = .blue, .c = ROW_LABEL_START + @as(u8, @intCast(y)), .bold = true });
                 }
 
-                if (y != GRIDSIZE-1) {
-                    try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*y + 1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
-                    try display.setPixel(xoff + 4*x+1 + label_extra_w, yoff + 2*y + 1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
-                }
+                // pawn squares
+                try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 4*x+1 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
 
+                if (true) {
+                    if (x != GRIDSIZE-1) {
+                        try display.setPixel(xoff + 4*x+2 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                        try display.setPixel(xoff + 4*x+3 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                    }
+
+                    if (y != GRIDSIZE-1) {
+                        try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*y + 1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                        try display.setPixel(xoff + 4*x+1 + label_extra_w, yoff + 2*y + 1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                    }
+
+                }
             }
         }
-    }
 
-    // draw fence join spots 
-    for (0..GRIDSIZE-1) |xg| {
-        for (0..GRIDSIZE-1) |yg| {
-            try display.setPixel(xoff + 4*xg+2 + label_extra_w, yoff + 2*yg + 1, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false });
-            try display.setPixel(xoff + 4*xg+3 + label_extra_w, yoff + 2*yg + 1, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false });
+        // draw fence join spots 
+        for (0..GRIDSIZE-1) |xg| {
+            for (0..GRIDSIZE-1) |yg| {
+                try display.setPixel(xoff + 4*xg+2 + label_extra_w, yoff + 2*yg + 1, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 4*xg+3 + label_extra_w, yoff + 2*yg + 1, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false });
+            }
         }
-    }
 
-    // column labels
-    for (0..GRIDSIZE) |x| {
-        try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*GRIDSIZE, .{ .fg = .white, .bg = .blue, .c = COLUMN_LABEL_START + @as(u8, @intCast(x)), .bold = true });
+        // column labels
+        for (0..GRIDSIZE) |x| {
+            try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*GRIDSIZE, .{ .fg = .white, .bg = .blue, .c = COLUMN_LABEL_START + @as(u8, @intCast(x)), .bold = true });
+        }
+    } else {
+        // draw border
+        for (0..GRIDSIZE*6+2) |x| {
+            try display.setPixel(xoff + x - 2, yoff-1, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false }); // top
+            try display.setPixel(xoff + x - 2, (yoff + 3*GRIDSIZE) - 1, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false }); // bottom
+        }
+        for (0..GRIDSIZE*3) |y| {
+            try display.setPixel(xoff - 2, yoff + y, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false }); // left
+            try display.setPixel(xoff - 1, yoff + y, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false }); // left
+
+            try display.setPixel(xoff + 6*GRIDSIZE - 2, yoff + y, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false }); // right
+            try display.setPixel(xoff + 6*GRIDSIZE - 1, yoff + y, .{ .fg = .white, .bg = .white, .c = ' ', .bold = false }); // right
+        }
+
+        // column labels
+        for (0..GRIDSIZE) |x| {
+            try display.setPixel(xoff + 6*x+1, yoff + 3*GRIDSIZE - 1, .{ .fg = .black, .bg = .white, .c = COLUMN_LABEL_START + @as(u8, @intCast(x)), .bold = true });
+        }
+
+        // draw squares
+        for (0..GRIDSIZE) |x| {
+            for (0..GRIDSIZE) |y| {
+                if (x == 0) {
+                    // row labels
+                    try display.setPixel(xoff + 6*x - 2, yoff + 3*y, .{ .fg = .black, .bg = .white, .c = ROW_LABEL_START + @as(u8, @intCast(y)), .bold = true });
+                }
+
+                // pawn squares
+                try display.setPixel(xoff + 6*x + 0, yoff + 3*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 1, yoff + 3*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 2, yoff + 3*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 3, yoff + 3*y, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+
+                try display.setPixel(xoff + 6*x + 0, yoff + 3*y+1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 1, yoff + 3*y+1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 2, yoff + 3*y+1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 3, yoff + 3*y+1, .{ .fg = .white, .bg = .black, .c = ' ', .bold = false });
+            }
+        }
+
     }
 }
 
 fn drawPawn(display:*Display, x:usize, y:usize, c:color.Color) void {
-    try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-    try display.setPixel(xoff + 4*x+1 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+    if (mini) {
+        try display.setPixel(xoff + 4*x + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 4*x+1 + label_extra_w, yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+    } else {
+        try display.setPixel(xoff + 6*x + 0, yoff + 3*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 1, yoff + 3*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 2, yoff + 3*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 3, yoff + 3*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+
+        try display.setPixel(xoff + 6*x + 0, yoff + 3*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 1, yoff + 3*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 2, yoff + 3*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 3, yoff + 3*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+    }
 }
 
 fn drawPawnHighlight(display:*Display, x:usize, y:usize, c:color.Color) void {
-    try display.setPixel(xoff + 4*x + label_extra_w - 1, yoff + 2*y, .{ .fg = .white, .bg = c, .c = '[', .bold = false });
-    try display.setPixel(xoff + 4*x + label_extra_w + 2, yoff + 2*y, .{ .fg = .white, .bg = c, .c = ']', .bold = false });
+    if (mini) {
+        try display.setPixel(xoff + 4*x + label_extra_w - 1, yoff + 2*y, .{ .fg = .white, .bg = c, .c = '[', .bold = false });
+        try display.setPixel(xoff + 4*x + label_extra_w + 2, yoff + 2*y, .{ .fg = .white, .bg = c, .c = ']', .bold = false });
+    } else {
+        try display.setPixel(xoff + 6*x - 1, yoff + 3*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 4, yoff + 3*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x - 1, yoff + 3*y + 1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        try display.setPixel(xoff + 6*x + 4, yoff + 3*y + 1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+    }
 }
 
 fn drawFence(display:*Display, x:usize, y:usize, c:color.Color, dir:Dir) void {
     // x,y is most NW square adjacent to fence
-    if (dir == .horz) {
-        for (0..6) |xi| {
-            try display.setPixel(xi + xoff + 4*x + label_extra_w, yoff + 2*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+    if (mini) {
+        if (dir == .horz) {
+            for (0..6) |xi| {
+                try display.setPixel(xi + xoff + 4*x + label_extra_w, yoff + 2*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
+        } else {
+            for (0..3) |yi| {
+                try display.setPixel(xoff + 4*x+2 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 4*x+2+1 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
         }
     } else {
-        for (0..3) |yi| {
-            try display.setPixel(xoff + 4*x+2 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-            try display.setPixel(xoff + 4*x+2+1 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        if (dir == .horz) {
+            for (0..10) |xi| {
+                try display.setPixel(xoff + 6*x + xi, yoff + 3*y + 2, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
+        } else {
+            for (0..5) |yi| {
+                try display.setPixel(xoff + 6*x + 4, yoff + 3*y + yi, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 5, yoff + 3*y + yi, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
         }
     }
 }
 
 fn drawFenceHighlight(display:*Display, x:usize, y:usize, c:color.Color, dir:Dir) void {
-    // x,y is most NW square adjacent to fence
-    if (dir == .horz) {
-        for (0..6) |xi| {
-            try display.setPixel(xi + xoff + 4*x + label_extra_w, yoff + 2*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+    if (mini) {
+        // x,y is most NW square adjacent to fence
+        if (dir == .horz) {
+            for (0..6) |xi| {
+                try display.setPixel(xi + xoff + 4*x + label_extra_w, yoff + 2*y+1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
+        } else {
+            for (0..3) |yi| {
+                try display.setPixel(xoff + 4*x+2 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 4*x+2+1 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
         }
     } else {
-        for (0..3) |yi| {
-            try display.setPixel(xoff + 4*x+2 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-            try display.setPixel(xoff + 4*x+2+1 + label_extra_w, yi + yoff + 2*y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+        if (dir == .horz) {
+            for (0..10) |xi| {
+                try display.setPixel(xoff + 6*x + xi, yoff + 3*y + 2, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
+        } else {
+            for (0..5) |yi| {
+                try display.setPixel(xoff + 6*x + 4, yoff + 3*y + yi, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+                try display.setPixel(xoff + 6*x + 5, yoff + 3*y + yi, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
+            }
         }
     }
-
 }
 
 fn parseCommandLine() !void {
@@ -1144,14 +1243,20 @@ fn parseCommandLine() !void {
     randseed_opt.setValuePlaceholder("12345");
     try zoridor.addArg(randseed_opt);
 
-    var forever_opt = Arg.booleanOption("forever", 'f', "Play forever");
-    forever_opt.setValuePlaceholder("12345");
+    const forever_opt = Arg.booleanOption("forever", 'f', "Play forever");
     try zoridor.addArg(forever_opt);
+
+    const mini_opt = Arg.booleanOption("mini", 'm', "Mini display < 80x24");
+    try zoridor.addArg(mini_opt);
 
     const matches = try app.parseProcess();
 
     if (matches.containsArg("forever")) {
         playForever = true;
+    }
+
+    if (matches.containsArg("mini")) {
+        mini = true;
     }
 
     if (matches.containsArg("randseed")) {
@@ -1181,16 +1286,13 @@ fn parseCommandLine() !void {
     }
 }
 
-fn emitMoves(turnN:usize, moves:[NUM_PAWNS]Move) !void {
-    std.debug.print("{d}. ", .{turnN + 1});
+fn emitMoves(turnN:usize, moves:[2]Move) !void {
+    var b1:[16]u8 = undefined;
+    var b2:[16]u8 = undefined;
+    const s1 = try moves[0].toString(&b1);
+    const s2 = try moves[1].toString(&b2);
 
-    for (moves) |move| {
-        var buf:[16]u8 = undefined;
-
-        const s = try move.toString(&buf);
-        std.debug.print("{s} ", .{s});
-    }
-    std.debug.print("\r\n", .{});
+    lastTurnStr = try std.fmt.bufPrint(&lastTurnBuf, "Turn: {d}. {s} {s}", .{turnN+1, s1, s2});
 }
 
 pub fn main() !void {
