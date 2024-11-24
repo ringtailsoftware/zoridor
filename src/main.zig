@@ -685,7 +685,7 @@ pub const GameState = struct {
 
                         const m = .{.pawn = .{.x = @as(usize, @intCast(px)), .y = @as(usize, @intCast(py))}};
                         if (!visited[(m.pawn.y)*GRIDSIZE+m.pawn.x]) {
-                            if (try gs.isLegalMovePawn(pos, m)) {
+                            if (try gs.isLegalPawnMove1Fence(pos, m)) {
                                 // push
                                 toExpand[toExpandTopIndex] = .{.x = m.pawn.x, .y = m.pawn.y};
                                 visited[(m.pawn.y)*GRIDSIZE+m.pawn.x] = true;
