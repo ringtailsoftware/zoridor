@@ -97,9 +97,35 @@ pub const PosDir = struct {
 };
 
 pub const Move = union(enum) {
+    const Self = @This();
     pawn: Pos,
     fence: PosDir,
     skip: void,
+
+    pub fn toString(self: Self, buf:[]u8) ![]u8{
+        switch(self) {
+            else => {
+                return std.fmt.bufPrint(buf, "", .{});
+            },
+            .pawn => |pawnmove| {
+                return std.fmt.bufPrint(buf, "{c}{c}", .{
+                    'a' + @as(u8, @intCast(pawnmove.x)),
+                    '1' + @as(u8, @intCast(pawnmove.y)),
+                });
+            },
+            .fence => |fencemove| {
+                var d:u8 = 'v';
+                if (fencemove.dir == .horz) {
+                    d = 'h';
+                }
+                return std.fmt.bufPrint(buf, "{c}{c}{c}", .{
+                    'a' + @as(u8, @intCast(fencemove.x)),
+                    '1' + @as(u8, @intCast(fencemove.y)),
+                    d,
+                });
+            },
+        }
+    }
 };
 
 pub const VerifiedMove = struct {
@@ -1155,14 +1181,29 @@ fn parseCommandLine() !void {
     }
 }
 
+fn emitMoves(turnN:usize, moves:[NUM_PAWNS]Move) !void {
+    std.debug.print("{d}. ", .{turnN + 1});
+
+    for (moves) |move| {
+        var buf:[16]u8 = undefined;
+
+        const s = try move.toString(&buf);
+        std.debug.print("{s} ", .{s});
+    }
+    std.debug.print("\r\n", .{});
+}
+
 pub fn main() !void {
     var exitReq = false;
 
     try parseCommandLine();
 
     while(!exitReq) {
+        var turnN:usize = 0;
         var gameOver = false;
         time.initTime();
+
+        var lastMoves:[NUM_PAWNS]Move = undefined;
 
         var display = try Display.init();
         display.cls();
@@ -1201,6 +1242,11 @@ pub fn main() !void {
                     if (humanUi.getCompletedMove()) |move| {
                         // apply the move
                         try gs.applyMove(pi, move);
+                        lastMoves[pi] = move.move;
+                        if (pi == NUM_PAWNS - 1) {  // final player to take turn
+                            try emitMoves(turnN, lastMoves);
+                            turnN += 1;
+                        }
 
                         if (gs.hasWon(pi)) {
                             wins[pi] += 1;
@@ -1224,6 +1270,12 @@ pub fn main() !void {
                     if (machineUi.getCompletedMove()) |move| {
                         // apply the move
                         try gs.applyMove(pi, move);
+                        lastMoves[pi] = move.move;
+                        if (pi == NUM_PAWNS - 1) {  // final player to take turn
+                            try emitMoves(turnN, lastMoves);
+                            turnN += 1;
+                        }
+
 
                         if (gs.hasWon(pi)) {
                             wins[pi] += 1;
