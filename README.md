@@ -10,6 +10,10 @@ Quoridor tutorials:
  - https://www.youtube.com/watch?v=FDdm-EgRy9g
  - https://www.youtube.com/watch?v=6ISruhN0Hc0
 
+# I just want to play! don't make me install Zig
+
+    docker run --rm -it -v `pwd`:/app -w /app kassany/alpine-ziglang:0.13.0 zig build run
+
 # Running
 
 Get [Zig](https://ziglang.org/download/)
