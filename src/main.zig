@@ -1187,7 +1187,11 @@ pub fn main() !void {
         }
 
         while (!gameOver) {
-            const next = try display.getEvent();
+            var timeout:i32 = 100;
+            if (players[0] == .Machine and players[1] == .Machine) {
+                timeout = 0;
+            }
+            const next = try display.getEvent(timeout);
 
             try humanUi.handleEvent(next, &gs, pi);
             try machineUi.handleEvent(next, &gs, pi);

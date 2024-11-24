@@ -53,10 +53,10 @@ pub const Display = struct {
         self.raw_term.disableRawMode() catch {};
     }
 
-    pub fn getEvent(self: *Self) !events.Event {
+    pub fn getEvent(self: *Self, timeout:i32) !events.Event {
         _ = self;
         const stdin = io.getStdIn();
-        const next = try events.nextWithTimeout(stdin, 10);
+        const next = try events.nextWithTimeout(stdin, timeout);
         return next;
     }
 
