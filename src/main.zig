@@ -189,7 +189,7 @@ pub const MachineUi = struct {
         // small bonus if increases their pathlen
         var r:isize = 0;
         if (oppPathlenPost > oppPathlenPre) {
-            r = 100;
+            r = 5;
         }
 
         if (RANDOMNESS > 0) {
