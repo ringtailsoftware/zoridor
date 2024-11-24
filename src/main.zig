@@ -1308,8 +1308,22 @@ pub fn main() !void {
         var lastMoves:[NUM_PAWNS]Move = undefined;
 
         var display = try Display.init();
-        display.cls();
         defer display.destroy();
+
+        const sz = try Display.getSize();
+        if (mini) {
+            if (sz.width < 80 or sz.height < 24) {
+                std.debug.print("Display too small, must be 80x24 or larger\r\n", .{});
+                return;
+            }
+        } else {
+            if (sz.width < 80 or sz.height < 29) {
+                std.debug.print("Display too small, must be 80x29 or larger\r\n", .{});
+                return;
+            }
+        }
+
+        display.cls();
 
         var humanUi = HumanUi.init();
         var machineUi = MachineUi.init();

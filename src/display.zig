@@ -46,6 +46,11 @@ pub const Display = struct {
         };
     }
 
+    pub fn getSize() !term.TermSize {
+        const stdin = io.getStdIn();
+        return term.getSize(stdin.handle);
+    }
+    
     pub fn destroy(self: *Self) void {
         const writer = io.getStdOut().writer();
         cursor.show(writer) catch {};
