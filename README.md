@@ -50,3 +50,7 @@ To watch machine vs machine matches forever:
 
     zig build run -- -1 machine -2 machine -f
 
+# Theory
+
+For a comprehensive examination of playing Quoridor, see [Lisa Glendenning's Thesis](https://www.labri.fr/perso/renault/working/teaching/projets/files/glendenning_ugrad_thesis.pdf)
+
