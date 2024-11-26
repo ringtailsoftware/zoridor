@@ -50,7 +50,7 @@ pub const Display = struct {
         const stdin = io.getStdIn();
         return term.getSize(stdin.handle);
     }
-    
+
     pub fn destroy(self: *Self) void {
         const writer = io.getStdOut().writer();
         cursor.show(writer) catch {};
@@ -58,7 +58,7 @@ pub const Display = struct {
         self.raw_term.disableRawMode() catch {};
     }
 
-    pub fn getEvent(self: *Self, timeout:i32) !events.Event {
+    pub fn getEvent(self: *Self, timeout: i32) !events.Event {
         _ = self;
         const stdin = io.getStdIn();
         const next = try events.nextWithTimeout(stdin, timeout);
