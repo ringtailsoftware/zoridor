@@ -23,29 +23,33 @@ const VerifiedMove = @import("gamestate.zig").VerifiedMove;
 const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 const UiAgentHuman = @import("uiagenthuman.zig").UiAgentHuman;
 
+// Interface for playing agents
 pub const UiAgent = union(enum) {
     human: UiAgentHuman,
     machine: UiAgentMachine,
 
+    // start searching for a move to make
     pub fn selectMoveInteractive(self: *UiAgent, gs: *const GameState, pi: usize) !void {
         switch(self.*) {
             inline else => |*case| return case.selectMoveInteractive(gs, pi),
         }
     }
 
+    // handle any UI events
     pub fn handleEvent(self: *UiAgent, event: events.Event, gs: *const GameState, pi: usize) !void {
         switch(self.*) {
             inline else => |*case| return case.handleEvent(event, gs, pi),
         }
     }
 
+    // paint anything to display
     pub fn paint(self: *UiAgent, display: *Display) !void {
         switch(self.*) {
             inline else => |*case| return case.paint(display),
         }
     }
 
-
+    // return chosen move, if one has been found. Will be polled
     pub fn getCompletedMove(self: *UiAgent) ?VerifiedMove {
         switch(self.*) {
             inline else => |*case| return case.getCompletedMove(),
@@ -57,14 +61,6 @@ pub const PlayerType = enum {
     Human,
     Machine,
 };
-
-pub const UiState = enum {
-    Idle,
-    MovingPawn,
-    MovingFence,
-    Completed,
-};
-
 
 pub fn drawGame(display: *Display, gs: *GameState, gspi: usize) !void {
     try drawStats(display, gs, gspi);

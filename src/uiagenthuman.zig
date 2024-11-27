@@ -1,4 +1,3 @@
-const UiState = @import("ui.zig").UiState;
 const time = @import("time.zig");
 const config = @import("config.zig");
 const GameState = @import("gamestate.zig").GameState;
@@ -15,6 +14,12 @@ const color = mibu.color;
 const std = @import("std");
 const Display = @import("display.zig").Display;
 
+const UiState = enum {
+    Idle,
+    MovingPawn,
+    MovingFence,
+    Completed,
+};
 
 pub const UiAgentHuman = struct {
     const Self = @This();

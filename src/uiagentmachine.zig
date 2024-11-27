@@ -1,4 +1,3 @@
-const UiState = @import("ui.zig").UiState;
 const time = @import("time.zig");
 const config = @import("config.zig");
 const GameState = @import("gamestate.zig").GameState;
@@ -19,7 +18,11 @@ var prng: std.Random.Xoshiro256 = undefined;
 var rand: std.Random = undefined;
 var randInited = false;
 
-
+const UiState = enum {
+    Idle,
+    Processing,
+    Completed,
+};
 
 pub const UiAgentMachine = struct {
     const Self = @This();
@@ -113,7 +116,7 @@ pub const UiAgentMachine = struct {
 
         switch (self.state) {
             .Idle, .Completed => {},
-            .MovingPawn, .MovingFence => { // generating a move
+            .Processing => { // generating a move
                 var moves: [config.MAXMOVES]Move = undefined;
                 var scores: [config.MAXMOVES]usize = undefined;
                 var bestScore: usize = 0;
@@ -144,7 +147,7 @@ pub const UiAgentMachine = struct {
     pub fn selectMoveInteractive(self: *Self, gs: *const GameState, pi: usize) !void {
         _ = gs;
         _ = pi;
-        self.state = .MovingPawn; // anything other than .Completed for "working" state
+        self.state = .Processing;
     }
 
     pub fn getCompletedMove(self: *Self) ?VerifiedMove {
