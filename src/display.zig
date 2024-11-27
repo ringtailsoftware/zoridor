@@ -70,7 +70,6 @@ pub const Display = struct {
     }
 
     pub fn cls(self: *Self) void {
-        self.forceUpdate = true;
         for (0..DISPLAYH) |y| {
             for (0..DISPLAYW) |x| {
                 self.bufs[self.liveBufIndex][y * DISPLAYW + x] = CLSPixel;
