@@ -10,7 +10,6 @@ const term = mibu.term;
 const color = mibu.color;
 
 const time = @import("time.zig");
-
 const config = @import("config.zig");
 
 const GameState = @import("gamestate.zig").GameState;
@@ -21,9 +20,38 @@ const Dir = @import("gamestate.zig").Dir;
 const Move = @import("gamestate.zig").Move;
 const VerifiedMove = @import("gamestate.zig").VerifiedMove;
 
-var prng: std.Random.Xoshiro256 = undefined;
-var rand: std.Random = undefined;
-var randInited = false;
+const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
+const UiAgentHuman = @import("uiagenthuman.zig").UiAgentHuman;
+
+pub const UiAgent = union(enum) {
+    human: UiAgentHuman,
+    machine: UiAgentMachine,
+
+    pub fn selectMoveInteractive(self: *UiAgent, gs: *const GameState, pi: usize) !void {
+        switch(self.*) {
+            inline else => |*case| return case.selectMoveInteractive(gs, pi),
+        }
+    }
+
+    pub fn handleEvent(self: *UiAgent, event: events.Event, gs: *const GameState, pi: usize) !void {
+        switch(self.*) {
+            inline else => |*case| return case.handleEvent(event, gs, pi),
+        }
+    }
+
+    pub fn paint(self: *UiAgent, display: *Display) !void {
+        switch(self.*) {
+            inline else => |*case| return case.paint(display),
+        }
+    }
+
+
+    pub fn getCompletedMove(self: *UiAgent) ?VerifiedMove {
+        switch(self.*) {
+            inline else => |*case| return case.getCompletedMove(),
+        }
+    }
+};
 
 pub const PlayerType = enum {
     Human,
@@ -37,321 +65,6 @@ pub const UiState = enum {
     Completed,
 };
 
-pub const MachineUi = struct {
-    const Self = @This();
-    state: UiState,
-    nextMove: VerifiedMove,
-
-    pub fn init() Self {
-        if (!randInited) {
-            randInited = true;
-            if (config.RANDOMSEED) |seed| {
-                prng = std.rand.DefaultPrng.init(@intCast(seed));
-            } else {
-                prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
-            }
-            rand = prng.random();
-        }
-
-        return Self{
-            .state = .Idle,
-            .nextMove = undefined,
-        };
-    }
-
-    fn calcPathlen(gs: *const GameState, pi: usize) !usize {
-        var pathbuf: PosPath = undefined;
-        if (gs.findShortestPath(pi, gs.getPawnPos(pi), &pathbuf)) |path| {
-            return path.len;
-        } else {
-            std.debug.print("pi = {any}\r\n", .{pi});
-            std.debug.print("graph = {any}\r\n", .{gs.graph});
-            std.debug.print("pawns = {any}\r\n", .{gs.pawns});
-            std.debug.print("fences = {any}\r\n", .{gs.fences});
-            std.debug.print("numFences = {any}\r\n", .{gs.numFences});
-            return error.InvalidMoveErr;
-        }
-    }
-
-    fn scoreMove(self: *Self, _gs: *const GameState, pi: usize, move: Move) !usize {
-        // Calculate an estimated score for potential move, minimax only looking at one move ahead
-        // Calculates lengths of my and opponents shortest paths to goal
-        // Wins points if this move shortens mine and lengthens theirs
-        // Slight scoring bonus for heading towards goal, to tie break equally scored moves
-        // Slight scoring bonus for lengthening opponents shortest path to goal
-        _ = self;
-        var gs = _gs.*; // clone gamestate
-
-        const myPathlenPre = try calcPathlen(&gs, pi);
-        const oppPathlenPre = try calcPathlen(&gs, (pi + 1) % config.NUM_PAWNS);
-        const myScorePre: isize = @as(isize, @intCast(oppPathlenPre)) - @as(isize, @intCast(myPathlenPre)); // +ve if I'm closer
-
-        const goalDistPre: isize = @as(isize, @intCast(gs.pawns[pi].pos.y)) - @as(isize, @intCast(gs.pawns[pi].goaly));
-
-        const vm = VerifiedMove{ .move = move, .legal = true }; // we know it's safe
-
-        try gs.applyMove(pi, vm); // move in clone
-
-        const myPathlenPost = try calcPathlen(&gs, pi);
-        const oppPathlenPost = try calcPathlen(&gs, (pi + 1) % config.NUM_PAWNS);
-        const myScorePost: isize = @as(isize, @intCast(oppPathlenPost)) - @as(isize, @intCast(myPathlenPost)); // +ve if I'm closer
-
-        const scoreDel: isize = myScorePost - myScorePre;
-
-        // add a small bonus if reduces my distance to goal
-        const goalDistPost: isize = @as(isize, @intCast(gs.pawns[pi].pos.y)) - @as(isize, @intCast(gs.pawns[pi].goaly));
-        const goalDistDel = @as(isize, @intCast(@abs(goalDistPre))) - @as(isize, @intCast(@abs(goalDistPost)));
-
-        // small bonus if increases their pathlen
-        var r: isize = 0;
-        if (myScorePre < 0) { // if I'm losing
-            if (oppPathlenPost > oppPathlenPre) { // and this move lengthens their path
-                r = 100; // give it a bonus
-            }
-        }
-
-        if (config.RANDOMNESS > 0) {
-            // perturb score by randomness factor
-            r += @intCast(rand.int(u32) % config.RANDOMNESS);
-        }
-
-        // +100000 is to ensure no result is negative
-        return @as(usize, @intCast((scoreDel * 100) + 100000 + (goalDistDel * 10) + r));
-    }
-
-    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !void {
-        _ = event;
-
-        switch (self.state) {
-            .Idle, .Completed => {},
-            .MovingPawn, .MovingFence => { // generating a move
-                var moves: [config.MAXMOVES]Move = undefined;
-                var scores: [config.MAXMOVES]usize = undefined;
-                var bestScore: usize = 0;
-                var bestScoreIndex: usize = 0;
-
-                // generate all legal moves
-                const numMoves = try gs.getAllLegalMoves(pi, &moves);
-                // score them all
-                for (0..numMoves) |i| {
-                    scores[i] = try self.scoreMove(gs, pi, moves[i]);
-                    //std.debug.print("SCORE = {d} MOVE = {any}\r\n", .{scores[i], moves[i]});
-                    if (scores[i] > bestScore) {
-                        bestScoreIndex = i;
-                        bestScore = scores[i];
-                    }
-                }
-                //std.debug.print("SCORE = {d} BESTMOVE = {any}\r\n", .{bestScore, moves[bestScoreIndex]});
-                // play highest scoring move
-                self.nextMove = try gs.verifyMove(pi, moves[bestScoreIndex]);
-                if (!self.nextMove.legal) {
-                    return error.InvalidMoveErr;
-                }
-                self.state = .Completed;
-            },
-        }
-    }
-
-    pub fn selectMoveInteractive(self: *Self, gs: *const GameState, pi: usize) !void {
-        _ = gs;
-        _ = pi;
-        self.state = .MovingPawn; // anything other than .Completed for "working" state
-    }
-
-    pub fn getCompletedMove(self: *Self) ?VerifiedMove {
-        switch (self.state) {
-            .Completed => return self.nextMove,
-            else => return null,
-        }
-    }
-};
-
-pub const HumanUi = struct {
-    const Self = @This();
-    state: UiState,
-    nextMove: VerifiedMove,
-
-    pub fn init() Self {
-        return Self{
-            .state = .Idle,
-            .nextMove = undefined,
-        };
-    }
-
-    fn selectMoveInteractivePawn(self: *Self, gs: *const GameState, pi: usize) !void {
-        self.state = .MovingPawn;
-        const move = Move{ .pawn = gs.pawns[pi].pos };
-        self.nextMove = try gs.verifyMove(pi, move);
-    }
-
-    fn selectMoveInteractiveFence(self: *Self, gs: *const GameState, pi: usize) !void {
-        self.state = .MovingFence;
-        const move = Move{
-            .fence = .{ // start fence placement in centre of grid
-                .pos = .{
-                    .x = config.GRIDSIZE / 2,
-                    .y = config.GRIDSIZE / 2,
-                },
-                .dir = .horz,
-            },
-        };
-        self.nextMove = try gs.verifyMove(pi, move);
-    }
-
-    pub fn selectMoveInteractive(self: *Self, gs: *const GameState, pi: usize) !void {
-        // default to pawn first
-        try self.selectMoveInteractivePawn(gs, pi);
-    }
-
-    pub fn getCompletedMove(self: *Self) ?VerifiedMove {
-        switch (self.state) {
-            .Completed => return self.nextMove,
-            else => return null,
-        }
-    }
-
-    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !void {
-        switch (self.state) {
-            .Completed => {},
-            .MovingFence => {
-                switch (event) {
-                    .key => |k| switch (k) {
-                        .down => {
-                            if (self.nextMove.move.fence.pos.y + 1 < config.GRIDSIZE - 1) {
-                                self.nextMove.move.fence.pos.y += 1;
-                                self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                            }
-                        },
-                        .up => {
-                            if (self.nextMove.move.fence.pos.y > 0) {
-                                self.nextMove.move.fence.pos.y -= 1;
-                                self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                            }
-                        },
-                        .left => {
-                            if (self.nextMove.move.fence.pos.x > 0) {
-                                self.nextMove.move.fence.pos.x -= 1;
-                                self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                            }
-                        },
-                        .right => {
-                            if (self.nextMove.move.fence.pos.x + 1 < config.GRIDSIZE - 1) {
-                                self.nextMove.move.fence.pos.x += 1;
-                                self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                            }
-                        },
-                        .enter => {
-                            if (self.nextMove.legal) {
-                                self.state = .Completed;
-                            }
-                        },
-                        .ctrl => |c| switch (c) {
-                            'i' => { // tab
-                                try self.selectMoveInteractivePawn(gs, pi);
-                            },
-                            else => {},
-                        },
-                        .char => |c| switch (c) {
-                            ' ' => {
-                                self.nextMove.move.fence.dir = self.nextMove.move.fence.dir.flip();
-                            },
-                            else => {},
-                        },
-                        else => {},
-                    },
-                    else => {},
-                }
-            },
-            .MovingPawn => {
-                // lowest x,y for movement allowed to avoid going offscreen
-                var minx: usize = 0;
-                if (gs.pawns[pi].pos.x > 1) {
-                    minx = gs.pawns[pi].pos.x - config.PAWN_EXPLORE_DIST;
-                }
-                var miny: usize = 0;
-                if (gs.pawns[pi].pos.y > 1) {
-                    miny = gs.pawns[pi].pos.y - config.PAWN_EXPLORE_DIST;
-                }
-
-                switch (event) {
-                    .key => |k| switch (k) {
-                        .left => {
-                            if (self.nextMove.move.pawn.x > 0) {
-                                if (self.nextMove.move.pawn.x - 1 >= minx) {
-                                    self.nextMove.move.pawn.x -= 1;
-                                    self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                                }
-                            }
-                        },
-                        .right => {
-                            if (self.nextMove.move.pawn.x < config.GRIDSIZE - 1) {
-                                if (self.nextMove.move.pawn.x + 1 <= gs.pawns[pi].pos.x + config.PAWN_EXPLORE_DIST) {
-                                    self.nextMove.move.pawn.x += 1;
-                                    self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                                }
-                            }
-                        },
-                        .up => {
-                            if (self.nextMove.move.pawn.y > 0) {
-                                if (self.nextMove.move.pawn.y - 1 >= miny) {
-                                    self.nextMove.move.pawn.y -= 1;
-                                    self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                                }
-                            }
-                        },
-                        .down => {
-                            if (self.nextMove.move.pawn.y < config.GRIDSIZE - 1) {
-                                if (self.nextMove.move.pawn.y + 1 <= gs.pawns[pi].pos.y + config.PAWN_EXPLORE_DIST) {
-                                    self.nextMove.move.pawn.y += 1;
-                                    self.nextMove = try gs.verifyMove(pi, self.nextMove.move);
-                                }
-                            }
-                        },
-                        .enter => {
-                            if (self.nextMove.legal) {
-                                self.state = .Completed;
-                            }
-                        },
-                        .ctrl => |c| switch (c) {
-                            'i' => { // tab
-                                if (gs.pawns[pi].numFencesRemaining > 0) {
-                                    try self.selectMoveInteractiveFence(gs, pi);
-                                }
-                            },
-                            else => {},
-                        },
-                        else => {},
-                    },
-                    else => {},
-                }
-            },
-            .Idle => {},
-        }
-    }
-
-    pub fn paint(self: *Self, display: *Display) !void {
-        switch (self.state) {
-            .Completed => {},
-            .MovingPawn => {
-                if (self.nextMove.legal) {
-                    drawPawnHighlight(display, self.nextMove.move.pawn.x, self.nextMove.move.pawn.y, .green);
-                } else {
-                    drawPawnHighlight(display, self.nextMove.move.pawn.x, self.nextMove.move.pawn.y, .red);
-                }
-            },
-            .MovingFence => {
-                if ((time.millis() / 100) % 5 > 0) { // flash highlight
-                    if (self.nextMove.legal) {
-                        drawFenceHighlight(display, self.nextMove.move.fence.pos.x, self.nextMove.move.fence.pos.y, .white, self.nextMove.move.fence.dir);
-                    } else {
-                        drawFenceHighlight(display, self.nextMove.move.fence.pos.x, self.nextMove.move.fence.pos.y, .red, self.nextMove.move.fence.dir);
-                    }
-                }
-            },
-            .Idle => {},
-        }
-    }
-};
 
 pub fn drawGame(display: *Display, gs: *GameState, gspi: usize) !void {
     try drawStats(display, gs, gspi);
@@ -521,18 +234,6 @@ fn drawPawn(display: *Display, x: usize, y: usize, c: color.Color) void {
     }
 }
 
-fn drawPawnHighlight(display: *Display, x: usize, y: usize, c: color.Color) void {
-    if (config.mini) {
-        try display.setPixel(config.UI_XOFF + 4 * x + config.label_extra_w - 1, config.UI_YOFF + 2 * y, .{ .fg = .white, .bg = c, .c = '[', .bold = false });
-        try display.setPixel(config.UI_XOFF + 4 * x + config.label_extra_w + 2, config.UI_YOFF + 2 * y, .{ .fg = .white, .bg = c, .c = ']', .bold = false });
-    } else {
-        try display.setPixel(config.UI_XOFF + 6 * x - 1, config.UI_YOFF + 3 * y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-        try display.setPixel(config.UI_XOFF + 6 * x + 4, config.UI_YOFF + 3 * y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-        try display.setPixel(config.UI_XOFF + 6 * x - 1, config.UI_YOFF + 3 * y + 1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-        try display.setPixel(config.UI_XOFF + 6 * x + 4, config.UI_YOFF + 3 * y + 1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-    }
-}
-
 fn drawFence(display: *Display, x: usize, y: usize, c: color.Color, dir: Dir) void {
     // x,y is most NW square adjacent to fence
     if (config.mini) {
@@ -560,32 +261,6 @@ fn drawFence(display: *Display, x: usize, y: usize, c: color.Color, dir: Dir) vo
     }
 }
 
-fn drawFenceHighlight(display: *Display, x: usize, y: usize, c: color.Color, dir: Dir) void {
-    if (config.mini) {
-        // x,y is most NW square adjacent to fence
-        if (dir == .horz) {
-            for (0..6) |xi| {
-                try display.setPixel(xi + config.UI_XOFF + 4 * x + config.label_extra_w, config.UI_YOFF + 2 * y + 1, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-            }
-        } else {
-            for (0..3) |yi| {
-                try display.setPixel(config.UI_XOFF + 4 * x + 2 + config.label_extra_w, yi + config.UI_YOFF + 2 * y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-                try display.setPixel(config.UI_XOFF + 4 * x + 2 + 1 + config.label_extra_w, yi + config.UI_YOFF + 2 * y, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-            }
-        }
-    } else {
-        if (dir == .horz) {
-            for (0..10) |xi| {
-                try display.setPixel(config.UI_XOFF + 6 * x + xi, config.UI_YOFF + 3 * y + 2, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-            }
-        } else {
-            for (0..5) |yi| {
-                try display.setPixel(config.UI_XOFF + 6 * x + 4, config.UI_YOFF + 3 * y + yi, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-                try display.setPixel(config.UI_XOFF + 6 * x + 5, config.UI_YOFF + 3 * y + yi, .{ .fg = .white, .bg = c, .c = ' ', .bold = false });
-            }
-        }
-    }
-}
 
 pub fn emitMoves(turnN: usize, moves: [2]Move) !void {
     var b1: [16]u8 = undefined;

@@ -8,7 +8,7 @@ const PosPath = @import("gamestate.zig").PosPath;
 const Pos = @import("gamestate.zig").Pos;
 const Pawn = @import("gamestate.zig").Pawn;
 const Dir = @import("gamestate.zig").Dir;
-const MachineUi = @import("ui.zig").MachineUi;
+const UiAgentMachine = @import("ui.zig").UiAgentMachine;
 
 test "bitgraph-edge" {
     var g = BitGraph.init();
@@ -541,7 +541,7 @@ test "gamerr1" {
 
     //gs.print();
 
-    var machine = MachineUi.init();
+    var machine = UiAgentMachine.init();
     try machine.selectMoveInteractive(&gs, pi);
     try machine.handleEvent(.none, &gs, pi);
 
@@ -576,3 +576,5 @@ test "q" {
         _ = q.remove();
     }
 }
+
+
