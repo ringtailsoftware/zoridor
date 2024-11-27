@@ -543,7 +543,7 @@ test "gamerr1" {
 
     var machine = UiAgentMachine.init();
     try machine.selectMoveInteractive(&gs, pi);
-    try machine.handleEvent(.none, &gs, pi);
+    _ = try machine.handleEvent(.none, &gs, pi);
 
     if (machine.getCompletedMove()) |_| {
         //std.debug.print("{any}\r\n", .{vm});
