@@ -52,7 +52,7 @@ pub const UiAgentRandom = struct {
             .Processing => { // generating a move
                 var moves: [config.MAXMOVES]Move = undefined;
                 // generate all legal moves
-                const numMoves = try gs.getAllLegalMoves(pi, &moves);
+                const numMoves = try gs.getAllLegalMoves(pi, &moves, 0);
                 // play random move
                 self.nextMove = try gs.verifyMove(pi, moves[rand.int(usize) % numMoves]);
                 if (!self.nextMove.legal) {

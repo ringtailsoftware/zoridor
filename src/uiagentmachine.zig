@@ -123,7 +123,7 @@ pub const UiAgentMachine = struct {
                 var bestScoreIndex: usize = 0;
 
                 // generate all legal moves
-                const numMoves = try gs.getAllLegalMoves(pi, &moves);
+                const numMoves = try gs.getAllLegalMoves(pi, &moves, 0);
                 // score them all
                 for (0..numMoves) |i| {
                     scores[i] = try self.scoreMove(gs, pi, moves[i]);

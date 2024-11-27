@@ -159,7 +159,9 @@ pub const GameState = struct {
         return graph;
     }
 
-    pub fn getAllLegalMoves(self: *const Self, pi: usize, moves: *[config.MAXMOVES]Move) !usize {
+    pub fn getAllLegalMoves(self: *const Self, pi: usize, moves: *[config.MAXMOVES]Move, maxMoves:usize) !usize {
+        // maxMoves = 0, generates all legal moves
+        // Any other maxMoves value limits it
         var numMoves: usize = 0;
 
         // find all possible pawn moves -2 -> +2 around current pos
@@ -173,6 +175,9 @@ pub const GameState = struct {
                     if (vm.legal) {
                         moves[numMoves] = move;
                         numMoves += 1;
+                        if (maxMoves != 0 and numMoves >= maxMoves) {
+                            return numMoves;
+                        }
                     }
                 }
             }
@@ -189,10 +194,16 @@ pub const GameState = struct {
                     if (vmv.legal) {
                         moves[numMoves] = movev;
                         numMoves += 1;
+                        if (maxMoves != 0 and numMoves >= maxMoves) {
+                            return numMoves;
+                        }
                     }
                     if (vmh.legal) {
                         moves[numMoves] = moveh;
                         numMoves += 1;
+                        if (maxMoves != 0 and numMoves >= maxMoves) {
+                            return numMoves;
+                        }
                     }
                 }
             }
