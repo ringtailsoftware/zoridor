@@ -44,20 +44,29 @@ pub const UiAgentRandom = struct {
         _ = display;
     }
 
+    pub fn getAnyLegalMove(self: *const Self, gs: *const GameState, pi: usize) !VerifiedMove{
+        _ = self;
+        while(true) {
+            const move = switch(rand.int(usize) % 3) {
+                0 => Move{ .pawn = .{ .x = @intCast(rand.int(usize)%9), .y = @intCast(rand.int(usize)%9) } },
+                1 => Move{ .fence = .{ .pos = .{ .x = @intCast(rand.int(usize)%8), .y = @intCast(rand.int(usize)%8) }, .dir = .vert } },
+                2 => Move{ .fence = .{ .pos = .{ .x = @intCast(rand.int(usize)%8), .y = @intCast(rand.int(usize)%8) }, .dir = .horz } },
+                else => unreachable,
+            };
+            const vm = try gs.verifyMove(pi, move);
+            if (vm.legal) {
+                return vm;
+            }
+        }
+    }
+
     pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
         _ = event;
 
         switch (self.state) {
             .Idle, .Completed => {},
             .Processing => { // generating a move
-                var moves: [config.MAXMOVES]Move = undefined;
-                // generate all legal moves
-                const numMoves = try gs.getAllLegalMoves(pi, &moves, 0);
-                // play random move
-                self.nextMove = try gs.verifyMove(pi, moves[rand.int(usize) % numMoves]);
-                if (!self.nextMove.legal) {
-                    return error.InvalidMoveErr;
-                }
+                self.nextMove = try self.getAnyLegalMove(gs, pi);
                 self.state = .Completed;
             },
         }
