@@ -8,7 +8,7 @@ const PosPath = @import("gamestate.zig").PosPath;
 const Pos = @import("gamestate.zig").Pos;
 const Pawn = @import("gamestate.zig").Pawn;
 const Dir = @import("gamestate.zig").Dir;
-const UiAgentMachine = @import("ui.zig").UiAgentMachine;
+const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 
 test "bitgraph-edge" {
     var g = BitGraph.init();
