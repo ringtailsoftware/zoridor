@@ -111,7 +111,7 @@ pub const UiAgentMachine = struct {
         return @as(usize, @intCast((scoreDel * 100) + 100000 + (goalDistDel * 10) + r));
     }
 
-    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !void {
+    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
         _ = event;
 
         switch (self.state) {
@@ -142,6 +142,7 @@ pub const UiAgentMachine = struct {
                 self.state = .Completed;
             },
         }
+        return false;
     }
 
     pub fn selectMoveInteractive(self: *Self, gs: *const GameState, pi: usize) !void {

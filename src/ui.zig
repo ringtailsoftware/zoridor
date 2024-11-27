@@ -23,10 +23,25 @@ const VerifiedMove = @import("gamestate.zig").VerifiedMove;
 const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 const UiAgentHuman = @import("uiagenthuman.zig").UiAgentHuman;
 
+
 // Interface for playing agents
 pub const UiAgent = union(enum) {
     human: UiAgentHuman,
     machine: UiAgentMachine,
+
+    pub fn getName(self: UiAgent, buf:[]u8) ![]const u8 {
+        return try std.fmt.bufPrint(buf, "{s}", .{@tagName(self)});
+    }
+
+    pub fn make(name:[]const u8) !UiAgent {
+        if (std.mem.eql(u8, name, "human")) {
+            return UiAgent{.human = UiAgentHuman.init()};
+        }
+        if (std.mem.eql(u8, name, "machine")) {
+            return UiAgent{.machine = UiAgentMachine.init()};
+        }
+        return error.InvalidAgentErr;
+    }
 
     // start searching for a move to make
     pub fn selectMoveInteractive(self: *UiAgent, gs: *const GameState, pi: usize) !void {
@@ -36,7 +51,7 @@ pub const UiAgent = union(enum) {
     }
 
     // handle any UI events
-    pub fn handleEvent(self: *UiAgent, event: events.Event, gs: *const GameState, pi: usize) !void {
+    pub fn handleEvent(self: *UiAgent, event: events.Event, gs: *const GameState, pi: usize) !bool {
         switch(self.*) {
             inline else => |*case| return case.handleEvent(event, gs, pi),
         }
@@ -55,11 +70,6 @@ pub const UiAgent = union(enum) {
             inline else => |*case| return case.getCompletedMove(),
         }
     }
-};
-
-pub const PlayerType = enum {
-    Human,
-    Machine,
 };
 
 pub fn drawGame(display: *Display, gs: *GameState, gspi: usize) !void {
@@ -82,7 +92,7 @@ fn paintString(display: *Display, bg: color.Color, fg: color.Color, bold: bool, 
 }
 
 fn drawStats(display: *Display, gs: *const GameState, pi: usize) !void {
-    var buf: [32]u8 = undefined;
+    var buf: [128]u8 = undefined;
 
     var statsXoff: usize = 0;
     var statsYoff: usize = 0;
@@ -95,17 +105,16 @@ fn drawStats(display: *Display, gs: *const GameState, pi: usize) !void {
         statsYoff = 2;
     }
 
-    switch (config.players[0]) {
-        .Human => try paintString(display, .black, .white, pi == 0, statsXoff, statsYoff, try std.fmt.bufPrint(&buf, "Player 1: Human", .{})),
-        .Machine => try paintString(display, .black, .white, pi == 0, statsXoff, statsYoff, try std.fmt.bufPrint(&buf, "Player 1: Machine", .{})),
-    }
+    var name0Buf:[64]u8 = undefined;
+    var name1Buf:[64]u8 = undefined;
+    const name0 = try config.players[0].getName(&name0Buf);
+    const name1 = try config.players[1].getName(&name1Buf);
+
+    try paintString(display, .black, .white, pi == 0, statsXoff, statsYoff, try std.fmt.bufPrint(&buf, "Player 1: {s}", .{name0}));
     try paintString(display, .black, .white, pi == 0, statsXoff, statsYoff + 1, try std.fmt.bufPrint(&buf, "Wins: {d}", .{config.wins[0]}));
     try paintString(display, .black, .white, pi == 0, statsXoff, statsYoff + 2, try std.fmt.bufPrint(&buf, "Fences: {d}", .{gs.pawns[0].numFencesRemaining}));
 
-    switch (config.players[1]) {
-        .Human => try paintString(display, .black, .white, pi == 1, statsXoff, statsYoff + 4, try std.fmt.bufPrint(&buf, "Player 2: Human", .{})),
-        .Machine => try paintString(display, .black, .white, pi == 1, statsXoff, statsYoff + 4, try std.fmt.bufPrint(&buf, "Player 2: Machine", .{})),
-    }
+    try paintString(display, .black, .white, pi == 1, statsXoff, statsYoff + 4, try std.fmt.bufPrint(&buf, "Player 2: {s}", .{name1}));
     try paintString(display, .black, .white, pi == 1, statsXoff, statsYoff + 5, try std.fmt.bufPrint(&buf, "Wins: {d}", .{config.wins[1]}));
     try paintString(display, .black, .white, pi == 1, statsXoff, statsYoff + 6, try std.fmt.bufPrint(&buf, "Fences: {d}", .{gs.pawns[1].numFencesRemaining}));
 
@@ -118,13 +127,11 @@ fn drawStats(display: *Display, gs: *const GameState, pi: usize) !void {
         try paintString(display, .black, .white, true, statsXoff, statsYoff + 16, try std.fmt.bufPrint(&buf, "Player2 won", .{}));
     }
 
-    if (config.players[0] == .Human or config.players[1] == .Human) {
-        try paintString(display, .black, .white, true, statsXoff, statsYoff + 8, try std.fmt.bufPrint(&buf, "q - quit", .{}));
-        try paintString(display, .black, .white, true, statsXoff, statsYoff + 9, try std.fmt.bufPrint(&buf, "cursors - set pos", .{}));
-        try paintString(display, .black, .white, true, statsXoff, statsYoff + 10, try std.fmt.bufPrint(&buf, "enter - confirm", .{}));
-        try paintString(display, .black, .white, true, statsXoff, statsYoff + 11, try std.fmt.bufPrint(&buf, "tab - fence/pawn", .{}));
-        try paintString(display, .black, .white, true, statsXoff, statsYoff + 12, try std.fmt.bufPrint(&buf, "space - rotate fence", .{}));
-    }
+    try paintString(display, .black, .white, true, statsXoff, statsYoff + 8, try std.fmt.bufPrint(&buf, "q - quit", .{}));
+    try paintString(display, .black, .white, true, statsXoff, statsYoff + 9, try std.fmt.bufPrint(&buf, "cursors - set pos", .{}));
+    try paintString(display, .black, .white, true, statsXoff, statsYoff + 10, try std.fmt.bufPrint(&buf, "enter - confirm", .{}));
+    try paintString(display, .black, .white, true, statsXoff, statsYoff + 11, try std.fmt.bufPrint(&buf, "tab - fence/pawn", .{}));
+    try paintString(display, .black, .white, true, statsXoff, statsYoff + 12, try std.fmt.bufPrint(&buf, "space - rotate fence", .{}));
 
     if (config.lastTurnStr) |s| {
         try paintString(display, .black, .white, true, statsXoff, statsYoff + 14, try std.fmt.bufPrint(&buf, "{s}", .{s}));

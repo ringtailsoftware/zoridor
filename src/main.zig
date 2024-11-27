@@ -8,7 +8,6 @@ const config = @import("config.zig");
 const GameState = @import("gamestate.zig").GameState;
 const Move = @import("gamestate.zig").Move;
 
-const PlayerType = @import("ui.zig").PlayerType;
 const UiAgent = @import("ui.zig").UiAgent;
 const UiAgentHuman = @import("uiagenthuman.zig").UiAgentHuman;
 const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
@@ -18,20 +17,11 @@ const emitMoves = @import("ui.zig").emitMoves;
 pub fn main() !void {
     var exitReq = false;
 
-    try config.parseCommandLine();
-
     while (!exitReq) {
+        try config.parseCommandLine();
         var turnN: usize = 0;
         var gameOver = false;
         time.initTime();
-
-        var agents:[config.NUM_PAWNS]UiAgent = undefined;
-        for (config.players, 0..) |p, i| {
-            switch(p) {
-                .Human => agents[i] = UiAgent{.human = UiAgentHuman.init()},
-                .Machine => agents[i] = UiAgent{.machine = UiAgentMachine.init()},
-            }
-        }
 
         var lastMoves: [config.NUM_PAWNS]Move = undefined;
 
@@ -59,18 +49,17 @@ pub fn main() !void {
 
         var pi: usize = 0; // whose turn is it
 
-        try agents[pi].selectMoveInteractive(&gs, pi);
+        try config.players[pi].selectMoveInteractive(&gs, pi);
 
+        var timeout: i32 = 0;   // default to not pausing, let machine agents run fast
         while (!gameOver) {
-            var timeout: i32 = 100;
-            if (config.players[0] == .Machine and config.players[1] == .Machine) {
-                timeout = 0;
-            }
             const next = try display.getEvent(timeout);
 
-            try agents[pi].handleEvent(next, &gs, pi);
+            if (try config.players[pi].handleEvent(next, &gs, pi)) {
+                timeout = 100;  // increase timeout if events being used for interaction
+            }
 
-            if (agents[pi].getCompletedMove()) |move| {
+            if (config.players[pi].getCompletedMove()) |move| {
                 // apply the move
                 try gs.applyMove(pi, move);
                 lastMoves[pi] = move.move;
@@ -87,7 +76,7 @@ pub fn main() !void {
                 // select next player to make a move
                 pi = (pi + 1) % config.NUM_PAWNS;
 
-                try agents[pi].selectMoveInteractive(&gs, pi);
+                try config.players[pi].selectMoveInteractive(&gs, pi);
             }
 
             switch (next) {
@@ -106,7 +95,7 @@ pub fn main() !void {
 
             display.cls();
             try drawGame(&display, &gs, pi);
-            try agents[pi].paint(&display);
+            try config.players[pi].paint(&display);
 
             try display.paint();
         }

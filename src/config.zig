@@ -1,8 +1,8 @@
 const mibu = @import("mibu");
 const color = mibu.color;
-const PlayerType = @import("ui.zig").PlayerType;
 const yazap = @import("yazap"); // command line parsing
 const std = @import("std");
+const UiAgent = @import("ui.zig").UiAgent;
 
 pub const GRIDSIZE: usize = 9;
 pub const NUM_PAWNS = 2;
@@ -23,7 +23,7 @@ pub var RANDOMSEED: ?u32 = null; // null = set from clock
 pub var RANDOMNESS: u32 = 0;
 
 pub var playForever = false;
-pub var players: [NUM_PAWNS]PlayerType = .{ .Human, .Machine };
+pub var players:[NUM_PAWNS]UiAgent = undefined;
 
 // for holding last turn string
 pub var lastTurnBuf: [32]u8 = undefined;
@@ -40,12 +40,16 @@ pub fn parseCommandLine() !void {
 
     var zoridor = app.rootCommand();
 
-    var player1_opt = Arg.singleValueOptionWithValidValues("player1", '1', "Player 1 type", &[_][]const u8{ "human", "machine" });
-    player1_opt.setValuePlaceholder("human|machine");
+    // find all available agent names
+    var agentNames:[std.meta.fields(UiAgent).len][]const u8 = undefined;
+    inline for (std.meta.fields(UiAgent), 0..) |f, i| {
+        agentNames[i] = f.name;
+    }
+
+    const player1_opt = Arg.singleValueOptionWithValidValues("player1", '1', "Player 1 type", &agentNames);
     try zoridor.addArg(player1_opt);
 
-    var player2_opt = Arg.singleValueOptionWithValidValues("player2", '2', "Player 2 type", &[_][]const u8{ "human", "machine" });
-    player2_opt.setValuePlaceholder("human|machine");
+    const player2_opt = Arg.singleValueOptionWithValidValues("player2", '2', "Player 2 type", &agentNames);
     try zoridor.addArg(player2_opt);
 
     var randseed_opt = Arg.singleValueOption("seedrand", 's', "Set random seed");
@@ -86,21 +90,23 @@ pub fn parseCommandLine() !void {
 
     if (matches.containsArg("player1")) {
         const typ = matches.getSingleValue("player1").?;
-
-        if (std.mem.eql(u8, typ, "human")) {
-            players[0] = .Human;
-        } else {
-            players[0] = .Machine;
-        }
+        players[0] = try UiAgent.make(typ);
     }
 
     if (matches.containsArg("player2")) {
         const typ = matches.getSingleValue("player2").?;
+        players[1] = try UiAgent.make(typ);
+    }
+}
 
-        if (std.mem.eql(u8, typ, "human")) {
-            players[1] = .Human;
-        } else {
-            players[1] = .Machine;
+fn eql(as:[]const u8, bs:[]const u8) bool {
+    if (as.len != bs.len) {
+        return false;
+    }
+    for (as, 0..) |a,i| {
+        if (bs[i] != a) {
+            return false;
         }
     }
+    return true;
 }

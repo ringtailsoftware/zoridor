@@ -65,7 +65,7 @@ pub const UiAgentHuman = struct {
         }
     }
 
-    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !void {
+    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
         switch (self.state) {
             .Completed => {},
             .MovingFence => {
@@ -182,6 +182,7 @@ pub const UiAgentHuman = struct {
             },
             .Idle => {},
         }
+        return true;
     }
 
     pub fn paint(self: *Self, display: *Display) !void {
