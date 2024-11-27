@@ -134,13 +134,18 @@ pub const BitGraph = struct {
         }
     }
 
+    const NodeData = struct {
+        parent: NodeId,
+        pathCost: ?u8,
+    };
+
+    fn lessThan(context: *[9*9]NodeData, a: NodeId, b: NodeId) std.math.Order {
+        return std.math.order(context[a].pathCost.?, context[b].pathCost.?);
+    }
+
     pub fn findShortestPath(self: *const Self, start: NodeId, goal: NodeIdRange, path: *[MAXPATH]NodeId, anyPath: bool) ?[]NodeId {
         // find shortest path from start to any node in goal range, returning slice of NodeIds using path as buffer
         // if anyPath is set, exit with non-null result if goal is ever reached
-        const NodeData = struct {
-            parent: NodeId,
-            pathCost: ?u8,
-        };
 
         var nodes: [9 * 9]NodeData = undefined;
         for (0..9 * 9) |i| {
@@ -150,19 +155,21 @@ pub const BitGraph = struct {
             };
         }
 
+        // use a fixed size buffer
+        var buffer: [4096]u8 = undefined;   // this size is a guess
+        var fba = std.heap.FixedBufferAllocator.init(&buffer);
+        const allocator = fba.allocator();
+        const pqlt = std.PriorityQueue(NodeId, *[9*9]NodeData, lessThan);
+
         // stack of nodes to expand
-        var toExpand: [9 * 9]NodeId = undefined;
-        var toExpandTopIndex: usize = 0;
+        var q = pqlt.init(allocator, &nodes);
+        defer q.deinit();
 
-        // push starting node position to be expanded
-        toExpand[toExpandTopIndex] = start;
-        toExpandTopIndex += 1;
         nodes[start].pathCost = 0;
+        q.add(start) catch {};
 
-        outer: while (toExpandTopIndex > 0) {
-            // pop
-            const n = toExpand[toExpandTopIndex - 1]; // new pos to explore
-            toExpandTopIndex -= 1;
+        outer: while (q.count() > 0) {
+            const n = q.remove();   // new pos to explore
 
             // for everything n is connected to
             if (self.hasAnyEdges(n)) {
@@ -183,8 +190,7 @@ pub const BitGraph = struct {
                                 nodes[n2].parent = n;
 
                                 // push
-                                toExpand[toExpandTopIndex] = @as(NodeId, @intCast(n2));
-                                toExpandTopIndex += 1;
+                                q.add(@as(NodeId, @intCast(n2))) catch {};
                             }
 
                             if (anyPath) {

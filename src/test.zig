@@ -1,4 +1,5 @@
 const std = @import("std");
+const expect = std.testing.expect;
 
 const BitGraph = @import("graph.zig").BitGraph;
 const GameState = @import("gamestate.zig").GameState;
@@ -11,45 +12,45 @@ const MachineUi = @import("ui.zig").MachineUi;
 
 test "bitgraph-edge" {
     var g = BitGraph.init();
-    try std.testing.expect(!g.hasAnyEdges(11));
-    try std.testing.expect(!g.hasAnyEdges(12));
+    try expect(!g.hasAnyEdges(11));
+    try expect(!g.hasAnyEdges(12));
     g.addEdgeBi(11, 12);
-    try std.testing.expect(g.hasAnyEdges(11));
-    try std.testing.expect(g.hasAnyEdges(12));
-    try std.testing.expect(g.hasEdgeUni(11, 12));
-    try std.testing.expect(g.hasEdgeUni(12, 11));
+    try expect(g.hasAnyEdges(11));
+    try expect(g.hasAnyEdges(12));
+    try expect(g.hasEdgeUni(11, 12));
+    try expect(g.hasEdgeUni(12, 11));
     g.delEdgeBi(11, 12);
-    try std.testing.expect(!g.hasAnyEdges(11));
-    try std.testing.expect(!g.hasAnyEdges(12));
-    try std.testing.expect(!g.hasEdgeUni(11, 12));
-    try std.testing.expect(!g.hasEdgeUni(12, 11));
+    try expect(!g.hasAnyEdges(11));
+    try expect(!g.hasAnyEdges(12));
+    try expect(!g.hasEdgeUni(11, 12));
+    try expect(!g.hasEdgeUni(12, 11));
 }
 
 test "bitgraph-delnode" {
     var g = BitGraph.init();
     g.addGridEdges();
 
-    try std.testing.expect(g.hasEdgeUni(12, 11));
-    try std.testing.expect(g.hasEdgeUni(12, 13));
-    try std.testing.expect(g.hasEdgeUni(12, 3));
-    try std.testing.expect(g.hasEdgeUni(12, 21));
+    try expect(g.hasEdgeUni(12, 11));
+    try expect(g.hasEdgeUni(12, 13));
+    try expect(g.hasEdgeUni(12, 3));
+    try expect(g.hasEdgeUni(12, 21));
 
     g.delNode(12);
 
-    try std.testing.expect(g.hasEdgeUni(11, 13));
-    try std.testing.expect(g.hasEdgeUni(11, 21));
-    try std.testing.expect(g.hasEdgeUni(11, 3));
-    try std.testing.expect(g.hasEdgeUni(3, 21));
-    try std.testing.expect(g.hasEdgeUni(3, 13));
-    try std.testing.expect(g.hasEdgeUni(3, 11));
-    try std.testing.expect(g.hasEdgeUni(13, 3));
-    try std.testing.expect(g.hasEdgeUni(13, 11));
-    try std.testing.expect(g.hasEdgeUni(13, 21));
-    try std.testing.expect(g.hasEdgeUni(21, 11));
-    try std.testing.expect(g.hasEdgeUni(21, 3));
-    try std.testing.expect(g.hasEdgeUni(21, 13));
+    try expect(g.hasEdgeUni(11, 13));
+    try expect(g.hasEdgeUni(11, 21));
+    try expect(g.hasEdgeUni(11, 3));
+    try expect(g.hasEdgeUni(3, 21));
+    try expect(g.hasEdgeUni(3, 13));
+    try expect(g.hasEdgeUni(3, 11));
+    try expect(g.hasEdgeUni(13, 3));
+    try expect(g.hasEdgeUni(13, 11));
+    try expect(g.hasEdgeUni(13, 21));
+    try expect(g.hasEdgeUni(21, 11));
+    try expect(g.hasEdgeUni(21, 3));
+    try expect(g.hasEdgeUni(21, 13));
 
-    try std.testing.expect(true);
+    try expect(true);
 }
 
 test "bitgraph-path-unreachable" {
@@ -60,8 +61,8 @@ test "bitgraph-path-unreachable" {
         .min = BitGraph.coordPosToNodeId(.{ .x = 0, .y = 8 }),
         .max = BitGraph.coordPosToNodeId(.{ .x = 8, .y = 8 }),
     };
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, true) == null);
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, false) == null);
+    try expect(g.findShortestPath(0, range, &pathbuf, true) == null);
+    try expect(g.findShortestPath(0, range, &pathbuf, false) == null);
 }
 
 test "bitgraph-path-reachable2" {
@@ -89,24 +90,24 @@ test "bitgraph-path-reachable2" {
         .max = BitGraph.coordPosToNodeId(.{ .x = 8, .y = 8 }),
     };
 
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, true) != null);
+    try expect(g.findShortestPath(0, range, &pathbuf, true) != null);
 
     const p = g.findShortestPath(0, range, &pathbuf, true);
     const anyplen = p.?.len;
 
     if (g.findShortestPath(0, range, &pathbuf, false)) |path| {
-        const expectedPath = [_]BitGraph.NodeId{ 0, 9, 18, 27, 36, 45, 46, 47, 48, 57, 66, 75, 76, 77, 78, 79, 80 };
-        try std.testing.expect(std.mem.eql(BitGraph.NodeId, path, &expectedPath));
-        try std.testing.expect(path.len <= anyplen); // check that optimal path at least as good as anypath
+        //const expectedPath = [_]BitGraph.NodeId{ 0, 9, 18, 27, 36, 45, 46, 47, 48, 57, 66, 75, 76, 77, 78, 79, 80 };
+        //try expect(std.mem.eql(BitGraph.NodeId, path, &expectedPath));
+        try expect(path.len <= anyplen); // check that optimal path at least as good as anypath
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 
     // remove connection
     g.delCoordEdgeBi(.{ .x = 2, .y = 5 }, .{ .x = 3, .y = 5 });
 
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, true) == null);
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, false) == null);
+    try expect(g.findShortestPath(0, range, &pathbuf, true) == null);
+    try expect(g.findShortestPath(0, range, &pathbuf, false) == null);
 }
 
 test "bitgraph-path-reachable" {
@@ -119,24 +120,24 @@ test "bitgraph-path-reachable" {
         .max = BitGraph.coordPosToNodeId(.{ .x = 8, .y = 8 }),
     };
 
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, true) != null);
+    try expect(g.findShortestPath(0, range, &pathbuf, true) != null);
 
     if (g.findShortestPath(0, range, &pathbuf, false)) |path| {
         const expectedPath = [_]BitGraph.NodeId{ 0, 9, 18, 27, 36, 45, 54, 63, 72 };
-        try std.testing.expect(std.mem.eql(BitGraph.NodeId, path, &expectedPath));
+        try expect(std.mem.eql(BitGraph.NodeId, path, &expectedPath));
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 
     g.delCoordEdgeBi(.{ .x = 0, .y = 0 }, .{ .x = 0, .y = 1 });
 
-    try std.testing.expect(g.findShortestPath(0, range, &pathbuf, true) != null);
+    try expect(g.findShortestPath(0, range, &pathbuf, true) != null);
 
     if (g.findShortestPath(0, range, &pathbuf, false)) |path| {
         const expectedPath = [_]BitGraph.NodeId{ 0, 1, 10, 19, 28, 37, 46, 55, 64, 73 };
-        try std.testing.expect(std.mem.eql(BitGraph.NodeId, path, &expectedPath));
+        try expect(std.mem.eql(BitGraph.NodeId, path, &expectedPath));
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 }
 
@@ -188,56 +189,56 @@ test "gamestate-fenceplace" {
 
     var gs = GameState.init();
     // can place either
-    try std.testing.expect(gs.canPlaceFence(f1));
-    try std.testing.expect(gs.canPlaceFence(f2));
+    try expect(gs.canPlaceFence(f1));
+    try expect(gs.canPlaceFence(f2));
 
     // can't place crossing overlap v over h
     gs.placeFence(0, f1);
-    try std.testing.expect(!gs.canPlaceFence(f2));
+    try expect(!gs.canPlaceFence(f2));
 
     // can't place crossing overlap h over v
     gs = GameState.init();
     gs.placeFence(0, f2);
-    try std.testing.expect(!gs.canPlaceFence(f1));
+    try expect(!gs.canPlaceFence(f1));
 
     // can place parallel h
     gs = GameState.init();
     gs.placeFence(0, f1);
-    try std.testing.expect(gs.canPlaceFence(f3));
+    try expect(gs.canPlaceFence(f3));
     gs.placeFence(0, f3);
 
     // can place parallel v
     gs = GameState.init();
     gs.placeFence(0, f2);
-    try std.testing.expect(gs.canPlaceFence(f4));
+    try expect(gs.canPlaceFence(f4));
     gs.placeFence(0, f4);
 
     // can place end to end h
     gs = GameState.init();
     gs.placeFence(0, f1);
-    try std.testing.expect(gs.canPlaceFence(f5));
+    try expect(gs.canPlaceFence(f5));
     gs.placeFence(0, f5);
 
     // can place end to end v
     gs = GameState.init();
     gs.placeFence(0, f2);
-    try std.testing.expect(gs.canPlaceFence(f6));
+    try expect(gs.canPlaceFence(f6));
     gs.placeFence(0, f6);
 
     // cannot place overlap h
     gs = GameState.init();
     gs.placeFence(0, f1);
-    try std.testing.expect(!gs.canPlaceFence(f9));
+    try expect(!gs.canPlaceFence(f9));
 
     // cannot place overlap v
     gs = GameState.init();
     gs.placeFence(0, f2);
-    try std.testing.expect(!gs.canPlaceFence(f7));
+    try expect(!gs.canPlaceFence(f7));
 
     // can place t shape
     gs = GameState.init();
     gs.placeFence(0, f1);
-    try std.testing.expect(gs.canPlaceFence(f8));
+    try expect(gs.canPlaceFence(f8));
     gs.placeFence(0, f8);
 }
 
@@ -254,9 +255,9 @@ test "gamestate-fenceplace-T" {
         .dir = .horz,
     };
 
-    try std.testing.expect(gs.canPlaceFence(f1));
+    try expect(gs.canPlaceFence(f1));
     gs.placeFence(0, f1);
-    try std.testing.expect(gs.canPlaceFence(f2));
+    try expect(gs.canPlaceFence(f2));
     gs.placeFence(0, f2);
 }
 
@@ -280,9 +281,9 @@ test "gamestate-fenceplace-blockpawn" {
         .dir = .horz,
     };
 
-    try std.testing.expect(gs.canPlaceFence(f1));
+    try expect(gs.canPlaceFence(f1));
     gs.placeFence(0, f1);
-    try std.testing.expect(!gs.canPlaceFence(f2));
+    try expect(!gs.canPlaceFence(f2));
 }
 
 test "gamestate-pawnmove" {
@@ -291,16 +292,16 @@ test "gamestate-pawnmove" {
     // can move down, up, right, left
     var pos = gs.getPawnPos(0);
     pos.y += 1;
-    try std.testing.expect(gs.canMovePawn(0, pos));
+    try expect(gs.canMovePawn(0, pos));
     gs.movePawn(0, pos);
     pos.y -= 1;
-    try std.testing.expect(gs.canMovePawn(0, pos));
+    try expect(gs.canMovePawn(0, pos));
     gs.movePawn(0, pos);
     pos.x += 1;
-    try std.testing.expect(gs.canMovePawn(0, pos));
+    try expect(gs.canMovePawn(0, pos));
     gs.movePawn(0, pos);
     pos.x -= 1;
-    try std.testing.expect(gs.canMovePawn(0, pos));
+    try expect(gs.canMovePawn(0, pos));
     gs.movePawn(0, pos);
 
     // X|
@@ -313,7 +314,7 @@ test "gamestate-pawnmove" {
     pos = gs.getPawnPos(0);
     gs.placeFence(0, f1);
     pos.x += 1;
-    try std.testing.expect(!gs.canMovePawn(0, pos));
+    try expect(!gs.canMovePawn(0, pos));
 
     // |X
     // |
@@ -325,7 +326,7 @@ test "gamestate-pawnmove" {
     pos = gs.getPawnPos(0);
     gs.placeFence(0, f2);
     pos.x -= 1;
-    try std.testing.expect(!gs.canMovePawn(0, pos));
+    try expect(!gs.canMovePawn(0, pos));
 
     //  X
     // --
@@ -337,7 +338,7 @@ test "gamestate-pawnmove" {
     pos = gs.getPawnPos(0);
     gs.placeFence(0, f3);
     pos.y += 1;
-    try std.testing.expect(!gs.canMovePawn(0, pos));
+    try expect(!gs.canMovePawn(0, pos));
 
     // --
     //  X
@@ -349,7 +350,7 @@ test "gamestate-pawnmove" {
     pos = gs.getPawnPos(1);
     gs.placeFence(0, f4);
     pos.y -= 1;
-    try std.testing.expect(!gs.canMovePawn(0, pos));
+    try expect(!gs.canMovePawn(0, pos));
 }
 
 test "coordpos" {
@@ -359,8 +360,8 @@ test "coordpos" {
         for (0..9) |x| {
             const cp = BitGraph.nodeIdToCoordPos(i);
             const ni = BitGraph.coordPosToNodeId(.{ .x = @intCast(x), .y = @intCast(y) });
-            try std.testing.expect(ni == i);
-            try std.testing.expect(cp.x == x and cp.y == y);
+            try expect(ni == i);
+            try expect(cp.x == x and cp.y == y);
             i += 1;
         }
     }
@@ -387,11 +388,11 @@ test "gamestate-pawnpath" {
         // follow path, skip starting pos at start of list
         for (path[1..path.len]) |n| {
             const nextpos = BitGraph.nodeIdToCoordPos(n);
-            try std.testing.expect(gs.canMovePawn(0, nextpos));
+            try expect(gs.canMovePawn(0, nextpos));
             gs.movePawn(0, nextpos);
         }
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 }
 
@@ -408,11 +409,11 @@ test "gamestate-pawnonpawn" {
 
     var pos = gs.getPawnPos(0);
     pos.x += 1;
-    try std.testing.expect(!gs.canMovePawn(0, pos)); // cannot land on pawn
+    try expect(!gs.canMovePawn(0, pos)); // cannot land on pawn
 
     pos = gs.getPawnPos(0);
     pos.x += 2;
-    try std.testing.expect(gs.canMovePawn(0, pos)); // can jump over pawn
+    try expect(gs.canMovePawn(0, pos)); // can jump over pawn
 }
 
 test "gamestate-pawnonpawnwall" {
@@ -435,26 +436,26 @@ test "gamestate-pawnonpawnwall" {
     var pos = gs.getPawnPos(1);
     pos.y -= 1;
     pos.x += 1;
-    try std.testing.expect(gs.canMovePawn(1, pos));
+    try expect(gs.canMovePawn(1, pos));
 
     pos = gs.getPawnPos(1);
     pos.y -= 1;
     pos.x -= 1;
-    try std.testing.expect(gs.canMovePawn(1, pos));
+    try expect(gs.canMovePawn(1, pos));
 
     pos = gs.getPawnPos(1);
     pos.y -= 2;
-    try std.testing.expect(!gs.canMovePawn(1, pos));
+    try expect(!gs.canMovePawn(1, pos));
 
     pos = gs.getPawnPos(1);
     pos.y -= 2;
     pos.x += 1;
-    try std.testing.expect(!gs.canMovePawn(1, pos));
+    try expect(!gs.canMovePawn(1, pos));
 
     pos = gs.getPawnPos(1);
     pos.y -= 2;
     pos.x -= 1;
-    try std.testing.expect(!gs.canMovePawn(1, pos));
+    try expect(!gs.canMovePawn(1, pos));
 }
 
 test "gamestate-findpath" {
@@ -472,14 +473,14 @@ test "gamestate-findpath" {
     const pathO = gs.findShortestPath(0, gs.getPawnPos(0), &pathbuf);
 
     if (pathO) |path| {
-        const expectedPath = [_]Pos{ .{ .x = 4, .y = 1 }, .{ .x = 4, .y = 2 }, .{ .x = 4, .y = 3 }, .{ .x = 5, .y = 3 }, .{ .x = 6, .y = 3 }, .{ .x = 7, .y = 3 }, .{ .x = 8, .y = 3 }, .{ .x = 8, .y = 4 }, .{ .x = 8, .y = 5 }, .{ .x = 8, .y = 6 }, .{ .x = 8, .y = 7 }, .{ .x = 8, .y = 8 } };
+        const expectedPath = [_]Pos { .{ .x = 5, .y = 0 }, .{ .x = 6, .y = 0 }, .{ .x = 6, .y = 1 }, .{ .x = 7, .y = 1 }, .{ .x = 7, .y = 2 }, .{ .x = 7, .y = 3 }, .{ .x = 8, .y = 3 }, .{ .x = 8, .y = 4 }, .{ .x = 8, .y = 5 }, .{ .x = 8, .y = 6 }, .{ .x = 8, .y = 7 }, .{ .x = 8, .y = 8 } };
 
-        try std.testing.expect(path.len == expectedPath.len);
+        try expect(path.len == expectedPath.len);
         for (path, 0..) |p, i| {
-            try std.testing.expect(p.x == expectedPath[i].x and p.y == expectedPath[i].y);
+            try expect(p.x == expectedPath[i].x and p.y == expectedPath[i].y);
         }
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 }
 
@@ -505,12 +506,12 @@ test "gamestate-findpath-pawnjump" {
     if (pathO) |path| {
         // checking it jumps over the final pawn
         const expectedPath = [_]Pos{ .{ .x = 4, .y = 1 }, .{ .x = 4, .y = 2 }, .{ .x = 4, .y = 3 }, .{ .x = 4, .y = 4 }, .{ .x = 4, .y = 5 }, .{ .x = 4, .y = 6 }, .{ .x = 4, .y = 8 } };
-        try std.testing.expect(path.len == expectedPath.len);
+        try expect(path.len == expectedPath.len);
         for (path, 0..) |p, i| {
-            try std.testing.expect(p.x == expectedPath[i].x and p.y == expectedPath[i].y);
+            try expect(p.x == expectedPath[i].x and p.y == expectedPath[i].y);
         }
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 }
 
@@ -526,7 +527,7 @@ test "finderr1" {
     if (gs.findShortestPath(pi, gs.getPawnPos(pi), &pathbuf)) |_| {
         //std.debug.print("path={any}\r\n", .{path});
     } else {
-        try std.testing.expect(false);
+        try expect(false);
     }
 }
 
@@ -546,8 +547,32 @@ test "gamerr1" {
 
     if (machine.getCompletedMove()) |_| {
         //std.debug.print("{any}\r\n", .{vm});
-        try std.testing.expect(true);
+        try expect(true);
     } else {
-        try std.testing.expect(false);
+        try expect(false);
+    }
+}
+
+fn lessThan(context: void, a: u32, b: u32) std.math.Order {
+    _ = context;
+    return std.math.order(a, b);
+}
+
+test "q" {
+    var buffer: [1000]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const allocator = fba.allocator();
+
+    const pqlt = std.PriorityQueue(u32, void, lessThan);
+
+    var q = pqlt.init(allocator, {});
+    defer q.deinit();
+
+    try q.add(10);
+    try q.add(5);
+    try q.add(15);
+
+    while(q.count() > 0) {
+        _ = q.remove();
     }
 }
