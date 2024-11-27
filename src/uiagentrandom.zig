@@ -1,16 +1,9 @@
-const time = @import("time.zig");
 const config = @import("config.zig");
 const GameState = @import("gamestate.zig").GameState;
-const PosDir = @import("gamestate.zig").PosDir;
-const PosPath = @import("gamestate.zig").PosPath;
-const Pos = @import("gamestate.zig").Pos;
-const Dir = @import("gamestate.zig").Dir;
 const Move = @import("gamestate.zig").Move;
 const VerifiedMove = @import("gamestate.zig").VerifiedMove;
 const mibu = @import("mibu");
 const events = mibu.events;
-const term = mibu.term;
-const color = mibu.color;
 const std = @import("std");
 const Display = @import("display.zig").Display;
 
