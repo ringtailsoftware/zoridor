@@ -112,7 +112,7 @@ pub const MachineUi = struct {
 
         if (config.RANDOMNESS > 0) {
             // perturb score by randomness factor
-            r += rand.int(u32) % config.RANDOMNESS;
+            r += @intCast(rand.int(u32) % config.RANDOMNESS);
         }
 
         // +100000 is to ensure no result is negative
