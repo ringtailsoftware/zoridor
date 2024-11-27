@@ -22,12 +22,14 @@ const VerifiedMove = @import("gamestate.zig").VerifiedMove;
 
 const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 const UiAgentHuman = @import("uiagenthuman.zig").UiAgentHuman;
+const UiAgentRandom = @import("uiagentrandom.zig").UiAgentRandom;
 
 
 // Interface for playing agents
 pub const UiAgent = union(enum) {
     human: UiAgentHuman,
     machine: UiAgentMachine,
+    random: UiAgentRandom,
 
     pub fn getName(self: UiAgent, buf:[]u8) ![]const u8 {
         return try std.fmt.bufPrint(buf, "{s}", .{@tagName(self)});
@@ -39,6 +41,9 @@ pub const UiAgent = union(enum) {
         }
         if (std.mem.eql(u8, name, "machine")) {
             return UiAgent{.machine = UiAgentMachine.init()};
+        }
+        if (std.mem.eql(u8, name, "random")) {
+            return UiAgent{.random = UiAgentRandom.init()};
         }
         return error.InvalidAgentErr;
     }
