@@ -21,6 +21,13 @@ export fn getTimeUs() u32 {
     return 0;
 }
 
+// exposed to JS
+export fn startGame() void {
+}
+export fn isMoveLegal() bool {
+    return true;
+}
+
 pub fn main() !void {
     var exitReq = false;
 
