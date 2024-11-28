@@ -99,14 +99,3 @@ pub fn parseCommandLine() !void {
     }
 }
 
-fn eql(as:[]const u8, bs:[]const u8) bool {
-    if (as.len != bs.len) {
-        return false;
-    }
-    for (as, 0..) |a,i| {
-        if (bs[i] != a) {
-            return false;
-        }
-    }
-    return true;
-}

@@ -16,96 +16,108 @@ const emitMoves = @import("ui.zig").emitMoves;
 
 const buildopts = @import("buildopts");
 
+// FIXME to be provided by JS
+export fn getTimeUs() u32 {
+    return 0;
+}
+
 pub fn main() !void {
     var exitReq = false;
 
-std.debug.print("rt web={any}\n", .{buildopts.web});
-exitReq = true;
+    // default to human vs machine
+    config.players[0] = try UiAgent.make("human");
+    config.players[1] = try UiAgent.make("machine");
 
-    while (!exitReq) {
+    if (!buildopts.web) {
         try config.parseCommandLine();
-        var turnN: usize = 0;
-        var gameOver = false;
-        time.initTime();
+    }
 
-        var lastMoves: [config.NUM_PAWNS]Move = undefined;
+    time.initTime();
 
-        var display = try Display.init();
-        defer display.destroy();
 
-        const sz = try Display.getSize();
-        if (config.mini) {
-            if (sz.width < 80 or sz.height < 24) {
-                std.debug.print("Display too small, must be 80x24 or larger\r\n", .{});
-                return;
-            }
-        } else {
-            if (sz.width < 80 or sz.height < 29) {
-                std.debug.print("Display too small, must be 80x29 or larger\r\n", .{});
-                return;
-            }
-        }
+    if (buildopts.web) {
+        return;
+    } else {
+        // loop for terminal
+        while (!exitReq) {
+            var display = try Display.init();
+            defer display.destroy();
 
-        display.cls();
-
-        try display.paint();
-
-        var gs = GameState.init();
-
-        var pi: usize = 0; // whose turn is it
-
-        try config.players[pi].selectMoveInteractive(&gs, pi);
-
-        var timeout: i32 = 0;   // default to not pausing, let machine agents run fast
-        while (!gameOver) {
-            const next = try display.getEvent(timeout);
-
-            if (try config.players[pi].handleEvent(next, &gs, pi)) {
-                timeout = 100;  // increase timeout if events being used for interaction
+            const sz = try Display.getSize();
+            if (config.mini) {
+                if (sz.width < 80 or sz.height < 24) {
+                    std.debug.print("Display too small, must be 80x24 or larger\r\n", .{});
+                    return;
+                }
+            } else {
+                if (sz.width < 80 or sz.height < 29) {
+                    std.debug.print("Display too small, must be 80x29 or larger\r\n", .{});
+                    return;
+                }
             }
 
-            if (config.players[pi].getCompletedMove()) |move| {
-                // apply the move
-                try gs.applyMove(pi, move);
-                lastMoves[pi] = move.move;
-                if (pi == config.NUM_PAWNS - 1) { // final player to take turn
-                    try emitMoves(turnN, lastMoves);
-                    turnN += 1;
+            display.cls();
+            try display.paint();
+
+            var timeout: i32 = 0;   // default to not pausing, let machine agents run fast
+            var turnN: usize = 0;
+            var gameOver = false;
+            var lastMoves: [config.NUM_PAWNS]Move = undefined;
+            var gs = GameState.init();
+            var pi: usize = 0; // whose turn is it
+
+            try config.players[pi].selectMoveInteractive(&gs, pi);
+
+            while (!gameOver) {
+                const next = try display.getEvent(timeout);
+
+                if (try config.players[pi].handleEvent(next, &gs, pi)) {
+                    timeout = 100;  // increase timeout if events being used for interaction
                 }
 
-                if (gs.hasWon(pi)) {
-                    config.wins[pi] += 1;
-                    gameOver = true;
+                if (config.players[pi].getCompletedMove()) |move| {
+                    // apply the move
+                    try gs.applyMove(pi, move);
+                    lastMoves[pi] = move.move;
+                    if (pi == config.NUM_PAWNS - 1) { // final player to take turn
+                        try emitMoves(turnN, lastMoves);
+                        turnN += 1;
+                    }
+
+                    if (gs.hasWon(pi)) {
+                        config.wins[pi] += 1;
+                        gameOver = true;
+                    }
+
+                    // select next player to make a move
+                    pi = (pi + 1) % config.NUM_PAWNS;
+
+                    try config.players[pi].selectMoveInteractive(&gs, pi);
                 }
 
-                // select next player to make a move
-                pi = (pi + 1) % config.NUM_PAWNS;
-
-                try config.players[pi].selectMoveInteractive(&gs, pi);
-            }
-
-            switch (next) {
-                .key => |k| switch (k) {
-                    .char => |c| switch (c) {
-                        'q' => {
-                            exitReq = true;
-                            break;
+                switch (next) {
+                    .key => |k| switch (k) {
+                        .char => |c| switch (c) {
+                            'q' => {
+                                exitReq = true;
+                                break;
+                            },
+                            else => {},
                         },
                         else => {},
                     },
                     else => {},
-                },
-                else => {},
+                }
+
+                display.cls();
+                try drawGame(&display, &gs, pi);
+                try config.players[pi].paint(&display);
+
+                try display.paint();
             }
-
-            display.cls();
-            try drawGame(&display, &gs, pi);
-            try config.players[pi].paint(&display);
-
-            try display.paint();
-        }
-        if (!config.playForever) {
-            exitReq = true;
+            if (!config.playForever) {
+                exitReq = true;
+            }
         }
     }
 }

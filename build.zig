@@ -11,15 +11,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const mibu = b.dependency("mibu", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    exe.root_module.addImport("mibu", mibu.module("mibu"));
-
-    const yazap = b.dependency("yazap", .{});
-    exe.root_module.addImport("yazap", yazap.module("yazap"));
-
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -35,9 +26,29 @@ pub fn build(b: *std.Build) void {
     const web = b.option(bool, "web", "Target web") orelse false;   // -Dweb=<bool>
     options.addOption(bool, "web", web);
     if (web) {
-        std.debug.print("For web\n", .{});
+        std.debug.print("Building for web\n", .{});
     } else {
-        std.debug.print("NOT for web\n", .{});
+        std.debug.print("Building for terminal (not web)\n", .{});
+        const mibu = b.dependency("mibu", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("mibu", mibu.module("mibu"));
+
+        const yazap = b.dependency("yazap", .{});
+        exe.root_module.addImport("yazap", yazap.module("yazap"));
+
+        const exe_unit_tests = b.addTest(.{
+            .root_source_file = b.path("src/test.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        exe_unit_tests.root_module.addImport("mibu", mibu.module("mibu"));
+
+        const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+
+        const test_step = b.step("test", "Run unit tests");
+        test_step.dependOn(&run_exe_unit_tests.step);
     }
 
     // allow @import("buildopts")
@@ -46,15 +57,4 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/test.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    exe_unit_tests.root_module.addImport("mibu", mibu.module("mibu"));
-
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_exe_unit_tests.step);
 }
