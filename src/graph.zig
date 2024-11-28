@@ -1,4 +1,5 @@
 const std = @import("std");
+const buildopts = @import("buildopts");
 
 pub const BitGraph = struct {
     pub const NodeId = u8; // 0 <= n < 81
@@ -255,6 +256,9 @@ pub const BitGraph = struct {
     }
 
     pub fn printEdges(self: *const Self) void {
+        if (buildopts.web) {
+            return;
+        }
         for (0..9 * 9) |i| {
             std.debug.print("{d} => ", .{i});
             for (0..9 * 9) |j| {
@@ -270,6 +274,10 @@ pub const BitGraph = struct {
     }
 
     pub fn print(self: *const Self) void {
+        if (buildopts.web) {
+            return;
+        }
+
         // 00<>01< 02
         // ^V  ^V  V
         // 03<>04<>05

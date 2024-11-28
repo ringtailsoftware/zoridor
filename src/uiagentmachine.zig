@@ -1,4 +1,4 @@
-const time = @import("time.zig");
+const clock = @import("clock.zig");
 const config = @import("config.zig");
 const GameState = @import("gamestate.zig").GameState;
 const PosDir = @import("gamestate.zig").PosDir;
@@ -35,7 +35,7 @@ pub const UiAgentMachine = struct {
             if (config.RANDOMSEED) |seed| {
                 prng = std.rand.DefaultPrng.init(@intCast(seed));
             } else {
-                prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+                prng = std.rand.DefaultPrng.init(@intCast(clock.millis()));
             }
             rand = prng.random();
         }
@@ -56,11 +56,11 @@ pub const UiAgentMachine = struct {
         if (gs.findShortestPath(pi, gs.getPawnPos(pi), &pathbuf)) |path| {
             return path.len;
         } else {
-            std.debug.print("pi = {any}\r\n", .{pi});
-            std.debug.print("graph = {any}\r\n", .{gs.graph});
-            std.debug.print("pawns = {any}\r\n", .{gs.pawns});
-            std.debug.print("fences = {any}\r\n", .{gs.fences});
-            std.debug.print("numFences = {any}\r\n", .{gs.numFences});
+//            std.debug.print("pi = {any}\r\n", .{pi});
+//            std.debug.print("graph = {any}\r\n", .{gs.graph});
+//            std.debug.print("pawns = {any}\r\n", .{gs.pawns});
+//            std.debug.print("fences = {any}\r\n", .{gs.fences});
+//            std.debug.print("numFences = {any}\r\n", .{gs.numFences});
             return error.InvalidMoveErr;
         }
     }

@@ -1,4 +1,4 @@
-const time = @import("time.zig");
+const clock = @import("clock.zig");
 const config = @import("config.zig");
 const GameState = @import("gamestate.zig").GameState;
 const PosDir = @import("gamestate.zig").PosDir;
@@ -196,7 +196,7 @@ pub const UiAgentHuman = struct {
                 }
             },
             .MovingFence => {
-                if ((time.millis() / 100) % 5 > 0) { // flash highlight
+                if ((clock.millis() / 100) % 5 > 0) { // flash highlight
                     if (self.nextMove.legal) {
                         drawFenceHighlight(display, self.nextMove.move.fence.pos.x, self.nextMove.move.fence.pos.y, .white, self.nextMove.move.fence.dir);
                     } else {

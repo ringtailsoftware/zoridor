@@ -2,7 +2,7 @@ const std = @import("std");
 
 const Display = @import("display.zig").Display;
 
-const time = @import("time.zig");
+const clock = @import("clock.zig");
 const config = @import("config.zig");
 
 const GameState = @import("gamestate.zig").GameState;
@@ -28,8 +28,40 @@ export fn isMoveLegal() bool {
     return true;
 }
 
+pub fn logFn(
+    comptime message_level: std.log.Level,
+    comptime scope: @TypeOf(.enum_literal),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    _ = message_level;
+    _ = scope;
+//       _ = console.print(format ++ "\n", args) catch 0;
+_ = args;
+_ = format;
+}
+
+pub const std_options = .{
+    .logFn = logFn,
+    .log_level = .info,
+};
+
+pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
+    _ = ret_addr;
+    _ = trace;
+    @setCold(true);
+//    _ = console.print("PANIC: {s}", .{msg}) catch 0;
+_ = msg;
+    while (true) {}
+}
+
 pub fn main() !void {
     var exitReq = false;
+
+if (buildopts.web) {
+config.players[0] = try UiAgent.make("human");
+    return;
+}
 
     // default to human vs machine
     config.players[0] = try UiAgent.make("human");
@@ -39,8 +71,7 @@ pub fn main() !void {
         try config.parseCommandLine();
     }
 
-    time.initTime();
-
+    clock.initTime();
 
     if (buildopts.web) {
         return;

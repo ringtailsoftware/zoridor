@@ -1,13 +1,22 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    var options = b.addOptions();
+    const web = b.option(bool, "web", "Target web") orelse false;   // -Dweb=<bool>
+    options.addOption(bool, "web", web);
+
+    const stdTarget = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const webTarget = b.resolveTargetQuery(.{
+        .cpu_arch = .wasm32,
+        .os_tag = .freestanding,
+    });
 
     const exe = b.addExecutable(.{
         .name = "zoridor",
         .root_source_file = b.path("src/main.zig"),
-        .target = target,
+        .target = if (web) webTarget else stdTarget,
         .optimize = optimize,
     });
 
@@ -22,15 +31,12 @@ pub fn build(b: *std.Build) void {
         run_cmd.addArgs(args);
     }
 
-    var options = b.addOptions();
-    const web = b.option(bool, "web", "Target web") orelse false;   // -Dweb=<bool>
-    options.addOption(bool, "web", web);
     if (web) {
         std.debug.print("Building for web\n", .{});
     } else {
         std.debug.print("Building for terminal (not web)\n", .{});
         const mibu = b.dependency("mibu", .{
-            .target = target,
+            .target = stdTarget,
             .optimize = optimize,
         });
         exe.root_module.addImport("mibu", mibu.module("mibu"));
@@ -40,7 +46,7 @@ pub fn build(b: *std.Build) void {
 
         const exe_unit_tests = b.addTest(.{
             .root_source_file = b.path("src/test.zig"),
-            .target = target,
+            .target = stdTarget,
             .optimize = optimize,
         });
         exe_unit_tests.root_module.addImport("mibu", mibu.module("mibu"));

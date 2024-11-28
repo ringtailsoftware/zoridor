@@ -6,6 +6,7 @@ const mibu = @import("mibu");
 const events = mibu.events;
 const std = @import("std");
 const Display = @import("display.zig").Display;
+const clock = @import("clock.zig");
 
 var prng: std.Random.Xoshiro256 = undefined;
 var rand: std.Random = undefined;
@@ -28,7 +29,7 @@ pub const UiAgentRandom = struct {
             if (config.RANDOMSEED) |seed| {
                 prng = std.rand.DefaultPrng.init(@intCast(seed));
             } else {
-                prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+                prng = std.rand.DefaultPrng.init(@intCast(clock.millis()));
             }
             rand = prng.random();
         }

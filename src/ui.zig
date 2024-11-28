@@ -9,7 +9,7 @@ const events = mibu.events;
 const term = mibu.term;
 const color = mibu.color;
 
-const time = @import("time.zig");
+const clock = @import("clock.zig");
 const config = @import("config.zig");
 
 const GameState = @import("gamestate.zig").GameState;
