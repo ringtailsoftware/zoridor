@@ -14,8 +14,13 @@ const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 const drawGame = @import("ui.zig").drawGame;
 const emitMoves = @import("ui.zig").emitMoves;
 
+const buildopts = @import("buildopts");
+
 pub fn main() !void {
     var exitReq = false;
+
+std.debug.print("rt web={any}\n", .{buildopts.web});
+exitReq = true;
 
     while (!exitReq) {
         try config.parseCommandLine();
