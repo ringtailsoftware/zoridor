@@ -75,42 +75,52 @@ export fn hasWon(pi:usize) bool {
     return wstate.gs.hasWon(pi);
 }
 
-export fn getNumFences() u32 {
+export fn getNumFences() usize {
     return wstate.gs.numFences;
 }
-export fn getFencePosX(i:usize) u32 {
+export fn getFencePosX(i:usize) usize {
     return wstate.gs.fences[i].pos.x;
 }
-export fn getFencePosY(i:usize) u32 {
+export fn getFencePosY(i:usize) usize {
     return wstate.gs.fences[i].pos.y;
 }
-export fn getFencePosDir(i:usize) u32 {
+export fn getFencePosDir(i:usize) usize {
     return switch(wstate.gs.fences[i].dir) {
         .vert => 'v',
         .horz => 'h',
     };
 }
 
-export fn getPawnPosX(pi:usize) u32 {
+export fn getPawnPosX(pi:usize) usize {
     return wstate.gs.getPawnPos(pi).x;
 }
-export fn getPawnPosY(pi:usize) u32 {
+export fn getPawnPosY(pi:usize) usize {
     return wstate.gs.getPawnPos(pi).y;
 }
 
+export fn getFencesRemaining(pi:usize) usize {
+    return wstate.gs.pawns[pi].numFencesRemaining;
+}
 
-fn gamesetup() !void {
+export fn restart(pi:usize) void {
+    _ = gamesetup(pi) catch 0;
+}
+
+fn gamesetup(pi:usize) !void {
     wstate = .{
-        .pi = 0,
+        .pi = pi,
         .gs = GameState.init(),
     };
     config.players[0] = try UiAgent.make("machine");    // should be "null"
     config.players[1] = try UiAgent.make("machine");
+    if (pi != 0) {
+        _ = getNextMoveInternal() catch 0;
+    }
 }
 
 export fn init() void {
     _ = console.print("Hello world\n", .{}) catch 0;
-    _ = gamesetup() catch 0;
+    _ = gamesetup(0) catch 0;
 }
 
 pub fn logFn(

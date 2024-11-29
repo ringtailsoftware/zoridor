@@ -28,12 +28,18 @@ function getTimeUs() {
 }
 
 export class Zoridor {
+    static cellSz = 25; // px
+    static statsCellSz = 10; // px
+    static statw = 24;
+    static stath = 12;
+
     static colourBackground = 'rgb(175,138,100)';
     static colourPawnSquareEmpty = 'rgb(101,67,40)'; 
     static colourFence = 'rgb(229,203,67)';
     static colourFenceIllegal = null;
     static fenceRadius = '5px';
     static pawnRadius = '50px';
+    static gridRadius = '1px';
     static colourPawns = [
         'rgb(25,25,25)',
         'rgb(215,30,40)'
@@ -57,7 +63,7 @@ export class Zoridor {
         return globalInstance;
     }
 
-    static async init(wasmFile, sampleRate) {
+    static async init(wasmFile) {
         // fetch wasm and instantiate
         await fetch(wasmFile).then((response) => {
             return response.arrayBuffer();
@@ -76,6 +82,13 @@ export class Zoridor {
         }).catch((err) => {
             console.log(err);
         });
+    }
+
+    static restart(pi) {
+        this.gameOver = false;
+        globalInstance.exports.restart(pi);
+        this.fetchState();
+        this.drawPieces();
     }
 
     static async start() {
@@ -153,10 +166,10 @@ export class Zoridor {
             if (p.pawn) {
                 //console.log(`P ${p.pawn.x},${p.pawn.y} (${x},${y})`);
                 if (globalInstance.exports.isPawnMoveLegal(p.pawn.x, p.pawn.y)) {
-                    this.drawPawn(this.pawns[this.pi].x, this.pawns[this.pi].y, this.colourPawnsDim[this.pi], 0);   // old pos
-                    this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawns[this.pi], this.pawnRadius);  // new pos
+                    this.drawPawn(this.pawns[this.pi].x, this.pawns[this.pi].y, this.colourPawnsDim[this.pi], 0, false);   // old pos
+                    this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawns[this.pi], this.pawnRadius, true);  // new pos
                 } else {
-                    this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawnIllegal, 0);
+                    this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawnIllegal, 0, false);
                 }
             }
             if (p.fence) {
@@ -212,7 +225,7 @@ export class Zoridor {
         }
     }
 
-    static drawPawn(x, y, col, radius) {
+    static drawPawn(x, y, col, radius, highlight) {
         if (!col) {
             return;
         }
@@ -228,37 +241,27 @@ export class Zoridor {
         td = document.getElementById(`cell${x*3+1},${y*3+1}`);
         td.style['border-bottom-right-radius'] = radius;
         td.style['background-color'] = col;
+
+        if (highlight) {
+            // TBD
+        }
+
     }
 
     static drawPieces() {
-        
         const pawnSz = 2;
         const fenceSz = 1;
         const dim = pawnSz*9 + fenceSz*8;
 
-        // all cells in background colour
+        // all cells transparent
         for (let y=0;y<dim;y++) {
             for (let x=0;x<dim;x++) {
                 let td = document.getElementById(`cell${x},${y}`);
-                td.style['background-color'] = this.colourBackground;
+                td.style['background-color'] = 'rgba(0,0,0,0)';
                 td.style['border-top-right-radius'] = '0px';
                 td.style['border-top-left-radius'] = '0px';
                 td.style['border-bottom-right-radius'] = '0px';
                 td.style['border-bottom-left-radius'] = '0px';
-            }
-        }
-
-        // pawn spots
-        for (let y=0;y<9;y++) {
-            for (let x=0;x<9;x++) {
-                let td = document.getElementById(`cell${x*3},${y*3}`);
-                td.style['background-color'] = this.colourPawnSquareEmpty;
-                td = document.getElementById(`cell${x*3+1},${y*3}`);
-                td.style['background-color'] = this.colourPawnSquareEmpty;
-                td = document.getElementById(`cell${x*3},${y*3+1}`);
-                td.style['background-color'] = this.colourPawnSquareEmpty;
-                td = document.getElementById(`cell${x*3+1},${y*3+1}`);
-                td.style['background-color'] = this.colourPawnSquareEmpty;
             }
         }
 
@@ -268,19 +271,85 @@ export class Zoridor {
 
         for (let i=0;i<this.pawns.length;i++) {
             const p = this.pawns[i];
-            this.drawPawn(p.x, p.y, this.colourPawns[i], this.pawnRadius);
+            this.drawPawn(p.x, p.y, this.colourPawns[i], this.pawnRadius, i == this.pi);
+        }
+
+        this.drawStats();
+    }
+
+    static drawStats() {
+        let x = 1;
+        let y = 2;
+        let pi = 0;
+
+        if (this.pawns.length != 2) {
+            // not inited
+            return;
+        }
+
+        // clear
+        for (let y=0;y<this.stath;y++) {
+            for (let x=0;x<this.statw;x++) {
+                let td = document.getElementById(`statcell${x},${y}`);
+                td.style['background-color'] = 'rgba(0,0,0,0)';
+                td.style['border-top-right-radius'] = '0px';
+                td.style['border-top-left-radius'] = '0px';
+                td.style['border-bottom-right-radius'] = '0px';
+                td.style['border-bottom-left-radius'] = '0px';
+            }
+        }
+
+        let xoff = [1, 1];
+        let yoff = [2, 8];
+
+        // draw pawns
+        for (let pi=0;pi<2;pi++) {
+            let x = xoff[pi];
+            let y = yoff[pi];
+
+            let td = document.getElementById(`statcell${x},${y}`);
+            td.style['border-top-left-radius'] = this.pawnRadius;
+            td.style['background-color'] = this.colourPawns[pi];
+            td = document.getElementById(`statcell${x+1},${y}`);
+            td.style['border-top-right-radius'] = this.pawnRadius;
+            td.style['background-color'] = this.colourPawns[pi];
+            td = document.getElementById(`statcell${x},${y+1}`);
+            td.style['border-bottom-left-radius'] = this.pawnRadius;
+            td.style['background-color'] = this.colourPawns[pi];
+            td = document.getElementById(`statcell${x+1},${y+1}`);
+            td.style['border-bottom-right-radius'] = this.pawnRadius;
+            td.style['background-color'] = this.colourPawns[pi];
+
+            for (let i=0;i<this.pawns[pi].fencesRemaining;i++) {
+                for (let yo=0;yo<5;yo++) {
+                    td = document.getElementById(`statcell${x + i*2 + 3},${y+yo-1}`);
+                    td.style['background-color'] = this.colourFence;
+                    if (yo == 0) {
+                        td.style['border-top-left-radius'] = this.fenceRadius;
+                        td.style['border-top-right-radius'] = this.fenceRadius;
+                    }
+                    if (yo == 4) {
+                        td.style['border-bottom-left-radius'] = this.fenceRadius;
+                        td.style['border-bottom-right-radius'] = this.fenceRadius;
+                    }
+                }
+            }
         }
     }
 
     static fetchState() {
+        this.pawns = [];
         this.pawns[0] = {
             x: globalInstance.exports.getPawnPosX(0),
-            y: globalInstance.exports.getPawnPosY(0)
+            y: globalInstance.exports.getPawnPosY(0),
+            fencesRemaining: globalInstance.exports.getFencesRemaining(0),
         };
         this.pawns[1] = {
             x: globalInstance.exports.getPawnPosX(1),
-            y: globalInstance.exports.getPawnPosY(1)
+            y: globalInstance.exports.getPawnPosY(1),
+            fencesRemaining: globalInstance.exports.getFencesRemaining(1),
         };
+        this.fences = [];
         for (let i=0;i<globalInstance.exports.getNumFences();i++) {
             this.fences[i] = {
                 x: globalInstance.exports.getFencePosX(i),
@@ -299,18 +368,18 @@ export class Zoridor {
         //console.log(this.fences);
     }
 
-    static tableCreate() {
-        let body = document.body;
-        let tbl = document.createElement('table');
-        tbl.style.width = '600px';
-        tbl.style.height = '600px';
-        tbl.style.border = '30px ridge ' + this.colourBackground;
-        tbl.style['border-spacing'] = '0px';
-        tbl.style['background-color'] = this.colourBackground;
-
+    static tableCreate(bgParentElem, parentElem, statsBgElem, statsElem) {
         const pawnSz = 2;
         const fenceSz = 1;
         const dim = pawnSz*9 + fenceSz*8;
+
+        // background display (board)
+        let tbl = document.createElement('table');
+        tbl.style.width = (this.cellSz * dim) + 'px';
+        tbl.style.height = (this.cellSz * dim) + 'px';
+        tbl.style.border = '30px ridge ' + this.colourBackground;
+        tbl.style['border-spacing'] = '0px';
+        tbl.style['background-color'] = this.colourBackground;
 
         for (let y=0;y<dim;y++) {
             const tr = tbl.insertRow();
@@ -319,6 +388,68 @@ export class Zoridor {
 
                 td.appendChild(document.createTextNode(""));
                 td.style['background-color'] = this.colourBackground;
+                td.id = `bgcell${x},${y}`
+
+                td.onmouseover = (evt) => {
+                    this.mouseOver(x, y);
+                };
+                td.onmouseout = (evt) => {
+                    this.mouseOut(x, y);
+                };
+                td.onclick = (evt) => {
+                    this.click(x, y);
+                };
+            }
+        }
+
+        bgParentElem.appendChild(tbl);
+
+        // all cells in background colour
+        for (let y=0;y<dim;y++) {
+            for (let x=0;x<dim;x++) {
+                let td = document.getElementById(`bgcell${x},${y}`);
+                td.style['background-color'] = this.colourBackground;
+                td.style['border-top-right-radius'] = '0px';
+                td.style['border-top-left-radius'] = '0px';
+                td.style['border-bottom-right-radius'] = '0px';
+                td.style['border-bottom-left-radius'] = '0px';
+            }
+        }
+
+        // pawn spots
+        for (let y=0;y<9;y++) {
+            for (let x=0;x<9;x++) {
+                let td = document.getElementById(`bgcell${x*3},${y*3}`);
+                td.style['background-color'] = this.colourPawnSquareEmpty;
+                td.style['border-top-left-radius'] = this.gridRadius;
+                td = document.getElementById(`bgcell${x*3+1},${y*3}`);
+                td.style['background-color'] = this.colourPawnSquareEmpty;
+                td.style['border-top-right-radius'] = this.gridRadius;
+                td = document.getElementById(`bgcell${x*3},${y*3+1}`);
+                td.style['background-color'] = this.colourPawnSquareEmpty;
+                td.style['border-bottom-left-radius'] = this.gridRadius;
+                td = document.getElementById(`bgcell${x*3+1},${y*3+1}`);
+                td.style['background-color'] = this.colourPawnSquareEmpty;
+                td.style['border-bottom-right-radius'] = this.gridRadius;
+            }
+        }
+
+
+        // pieces cells
+        tbl = document.createElement('table');
+        tbl.style.width = (this.cellSz * dim) + 'px';
+        tbl.style.height = (this.cellSz * dim) + 'px';
+        tbl.style.border = '30px ridge ' + this.colourBackground;
+        tbl.style['border-spacing'] = '0px';
+        tbl.style['background-color'] = 'rgba(0,0,0,0)';
+
+        for (let y=0;y<dim;y++) {
+            const tr = tbl.insertRow();
+            for (let x=0;x<dim;x++) {
+                const td = tr.insertCell();
+
+                td.appendChild(document.createTextNode(""));
+                td.style['background-color'] = 'rgba(0,0,0,0)';
                 td.style.transition = '0.1s';
                 td.id = `cell${x},${y}`
 
@@ -331,11 +462,53 @@ export class Zoridor {
                 td.onclick = (evt) => {
                     this.click(x, y);
                 };
-
             }
         }
 
-        body.appendChild(tbl);
+        parentElem.appendChild(tbl);
+
+        // stats
+        tbl = document.createElement('table');
+        tbl.style.width = (this.statsCellSz * this.statw) + 'px';
+        tbl.style.height = (this.statsCellSz * this.stath) + 'px';
+        tbl.style.border = '10px ridge ' + this.colourBackground;
+        tbl.style['border-spacing'] = '0px';
+        tbl.style['background-color'] = 'rgba(0,0,0,0)';
+
+        for (let y=0;y<this.stath;y++) {
+            const tr = tbl.insertRow();
+            for (let x=0;x<this.statw;x++) {
+                const td = tr.insertCell();
+                td.appendChild(document.createTextNode(""));
+                td.style['background-color'] = 'rgba(0,0,0,0)';
+                td.style.transition = '0.1s';
+                td.id = `statbgcell${x},${y}`
+                td.style['background-color'] = this.colourBackground;
+            }
+        }
+
+        statsBgElem.appendChild(tbl);
+
+        tbl = document.createElement('table');
+        tbl.style.width = (this.statsCellSz * this.statw) + 'px';
+        tbl.style.height = (this.statsCellSz * this.stath) + 'px';
+        tbl.style.border = '10px ridge ' + this.colourBackground;
+        tbl.style['border-spacing'] = '0px';
+        tbl.style['background-color'] = 'rgba(0,0,0,0)';
+
+        for (let y=0;y<this.stath;y++) {
+            const tr = tbl.insertRow();
+            for (let x=0;x<this.statw;x++) {
+                const td = tr.insertCell();
+                td.appendChild(document.createTextNode(""));
+                td.style['background-color'] = 'rgba(0,0,0,0)';
+                td.style.transition = '0.1s';
+                td.id = `statcell${x},${y}`
+                td.style['background-color'] = 'rgba(0,0,0,0)';
+            }
+        }
+
+        statsElem.appendChild(tbl);
 
         this.drawPieces();
     }
