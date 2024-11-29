@@ -18,6 +18,12 @@ const buildopts = @import("buildopts");
 
 const console = @import("console.zig").getWriter().writer();
 
+const WebState = struct {
+    pi: usize,
+    gs: GameState,
+};
+var wstate:WebState = undefined;
+
 // FIXME to be provided by JS
 export fn getTimeUs() u32 {
     return 0;
@@ -26,12 +32,40 @@ export fn getTimeUs() u32 {
 // exposed to JS
 export fn startGame() void {
 }
-export fn isMoveLegal() bool {
+export fn isMoveLegal(x:u32, y:u32) bool {
+    _ = console.print("ISLEGAL? {d},{d}\n", .{x,y}) catch 0;
     return true;
 }
 
+fn getNextMoveInternal() !void {
+    try config.players[wstate.pi].selectMoveInteractive(&wstate.gs, wstate.pi);
+    try config.players[wstate.pi].process(&wstate.gs, wstate.pi);
+    if (config.players[wstate.pi].getCompletedMove()) |vmove| {
+        try wstate.gs.applyMove(wstate.pi, vmove);
+        var b1: [16]u8 = undefined;
+        const s1 = try vmove.move.toString(&b1);
+        _ = console.print("Move {s}\n", .{s1}) catch 0;
+        wstate.pi = (wstate.pi + 1) % config.NUM_PAWNS;
+    }
+}
+
+export fn getNextMove() void {
+    _ = console.print("GNM\n", .{}) catch 0;
+    _ = getNextMoveInternal() catch 0;
+}
+
+fn gamesetup() !void {
+    wstate = .{
+        .pi = 0,
+        .gs = GameState.init(),
+    };
+    config.players[0] = try UiAgent.make("machine");
+    config.players[1] = try UiAgent.make("machine");
+}
+
 export fn init() void {
-_ = console.print("Hello world\n", .{}) catch 0;
+    _ = console.print("Hello world\n", .{}) catch 0;
+    _ = gamesetup() catch 0;
 }
 
 pub fn logFn(
@@ -106,6 +140,8 @@ pub fn main() !void {
 
             while (!gameOver) {
                 const next = try display.getEvent(timeout);
+
+                try config.players[pi].process(&gs, pi);
 
                 if (try config.players[pi].handleEvent(next, &gs, pi)) {
                     timeout = 100;  // increase timeout if events being used for interaction

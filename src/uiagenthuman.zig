@@ -65,6 +65,12 @@ pub const UiAgentHuman = struct {
         }
     }
 
+    pub fn process(self: *Self, gs: *const GameState, pi: usize) !void {
+        _ = self;
+        _ = gs;
+        _ = pi;
+    }
+
     pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
         switch (self.state) {
             .Completed => {},

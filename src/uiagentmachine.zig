@@ -111,9 +111,7 @@ pub const UiAgentMachine = struct {
         return @as(usize, @intCast((scoreDel * 100) + 100000 + (goalDistDel * 10) + r));
     }
 
-    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
-        _ = event;
-
+    pub fn process(self: *Self, gs: *const GameState, pi: usize) !void {
         switch (self.state) {
             .Idle, .Completed => {},
             .Processing => { // generating a move
@@ -142,6 +140,13 @@ pub const UiAgentMachine = struct {
                 self.state = .Completed;
             },
         }
+    }
+
+    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
+        _ = gs;
+        _ = pi;
+        _ = self;
+        _ = event;
         return false;
     }
 

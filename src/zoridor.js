@@ -56,6 +56,8 @@ export class Zoridor {
         // tell wasm to start
         if (globalInstance.exports.init) {
             globalInstance.exports.init();
+            console.log(globalInstance.exports.getNextMove());
+            console.log(globalInstance.exports.getNextMove());
         }
     }
 }

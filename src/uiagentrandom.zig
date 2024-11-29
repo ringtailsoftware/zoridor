@@ -61,9 +61,15 @@ pub const UiAgentRandom = struct {
         }
     }
 
-    pub fn handleEvent(self: *Self, event: events.Event, gs: *const GameState, pi: usize) !bool {
+    pub fn handleEvent(self: *Self, event: ?events.Event, gs: *const GameState, pi: usize) !bool {
+        _ = gs;
+        _ = pi;
+        _ = self;
         _ = event;
+        return false;
+    }
 
+    pub fn process(self: *Self, gs: *const GameState, pi: usize) !void {
         switch (self.state) {
             .Idle, .Completed => {},
             .Processing => { // generating a move
@@ -71,7 +77,6 @@ pub const UiAgentRandom = struct {
                 self.state = .Completed;
             },
         }
-        return false;
     }
 
     pub fn selectMoveInteractive(self: *Self, gs: *const GameState, pi: usize) !void {

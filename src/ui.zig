@@ -56,6 +56,13 @@ pub const UiAgent = union(enum) {
     }
 
     // handle any UI events
+    pub fn process(self: *UiAgent, gs: *const GameState, pi: usize) !void {
+        switch(self.*) {
+            inline else => |*case| return case.process(gs, pi),
+        }
+    }
+
+    // handle any UI events
     pub fn handleEvent(self: *UiAgent, event: events.Event, gs: *const GameState, pi: usize) !bool {
         switch(self.*) {
             inline else => |*case| return case.handleEvent(event, gs, pi),
