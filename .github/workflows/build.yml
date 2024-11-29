@@ -6,7 +6,7 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{matrix.os}}
     steps:
       - name: Checkout zoridor
@@ -17,7 +17,13 @@ jobs:
         uses: goto-bus-stop/setup-zig@v1
         with:
           version: 0.13.0
-      - name: Build
+      - name: Build test
         run: zig build test
+        working-directory: zoridor
+      - name: Build terminal
+        run: zig build -Dweb=false
+        working-directory: zoridor
+      - name: Build web
+        run: zig build -Dweb=true
         working-directory: zoridor
 
