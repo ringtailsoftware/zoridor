@@ -1,6 +1,8 @@
 # Zoridor
 
-A terminal version of the [Quoridor](https://en.wikipedia.org/wiki/Quoridor) board game
+A terminal and web version of the [Quoridor](https://en.wikipedia.org/wiki/Quoridor) board game
+
+Play on the web at https://ringtailsoftware.github.io/zoridor/
 
 ![](doc/demo.gif)
 
