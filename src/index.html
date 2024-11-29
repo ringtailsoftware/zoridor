@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>cat</title>
+    <style>
+    canvas {
+        width: 800px;
+        height: 800px;
+        image-rendering: crisp-edges;
+        border-style: solid;
+        touch-action: none;
+    }
+
+    </style>
+</head>
+
+<script type="module" defer="true">
+    import { Zoridor } from "./zoridor.js";
+
+    window.addEventListener('load', async () => {
+        await Zoridor.init('bin/zoridor.wasm');
+        await Zoridor.start();
+    });
+
+</script>
+
+<body>
+    <p>
+    </p>
+</body>
+
+</html>

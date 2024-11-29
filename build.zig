@@ -33,6 +33,9 @@ pub fn build(b: *std.Build) void {
 
     if (web) {
         std.debug.print("Building for web\n", .{});
+        b.installFile("src/index.html", "index.html");
+        b.installFile("src/zoridor.js", "zoridor.js");
+        exe.rdynamic = true;
     } else {
         std.debug.print("Building for terminal (not web)\n", .{});
         const mibu = b.dependency("mibu", .{

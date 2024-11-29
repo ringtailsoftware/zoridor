@@ -16,6 +16,8 @@ const emitMoves = @import("ui.zig").emitMoves;
 
 const buildopts = @import("buildopts");
 
+const console = @import("console.zig").getWriter().writer();
+
 // FIXME to be provided by JS
 export fn getTimeUs() u32 {
     return 0;
@@ -28,6 +30,10 @@ export fn isMoveLegal() bool {
     return true;
 }
 
+export fn init() void {
+_ = console.print("Hello world\n", .{}) catch 0;
+}
+
 pub fn logFn(
     comptime message_level: std.log.Level,
     comptime scope: @TypeOf(.enum_literal),
@@ -36,9 +42,7 @@ pub fn logFn(
 ) void {
     _ = message_level;
     _ = scope;
-//       _ = console.print(format ++ "\n", args) catch 0;
-_ = args;
-_ = format;
+    _ = console.print(format ++ "\n", args) catch 0;
 }
 
 pub const std_options = .{
@@ -50,18 +54,12 @@ pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, ret_addr: ?usize)
     _ = ret_addr;
     _ = trace;
     @setCold(true);
-//    _ = console.print("PANIC: {s}", .{msg}) catch 0;
-_ = msg;
+    _ = console.print("PANIC: {s}", .{msg}) catch 0;
     while (true) {}
 }
 
 pub fn main() !void {
     var exitReq = false;
-
-if (buildopts.web) {
-config.players[0] = try UiAgent.make("human");
-    return;
-}
 
     // default to human vs machine
     config.players[0] = try UiAgent.make("human");
