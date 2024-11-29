@@ -15,7 +15,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "zoridor",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path(if (web) "src/webmain.zig" else "src/main.zig"),
         .target = if (web) webTarget else stdTarget,
         .optimize = optimize,
     });

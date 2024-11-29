@@ -18,135 +18,6 @@ const buildopts = @import("buildopts");
 
 const console = @import("console.zig").getWriter().writer();
 
-const WebState = struct {
-    pi: usize,
-    gs: GameState,
-};
-var wstate:WebState = undefined;
-
-// exposed to JS
-fn getNextMoveInternal() !void {
-    wstate.pi = (wstate.pi + 1) % config.NUM_PAWNS;
-
-    // FIXME assumes move is available immediately, js should poll for it and call process repeatedly
-    try config.players[wstate.pi].selectMoveInteractive(&wstate.gs, wstate.pi);
-    try config.players[wstate.pi].process(&wstate.gs, wstate.pi);
-    if (config.players[wstate.pi].getCompletedMove()) |vmove| {
-        try wstate.gs.applyMove(wstate.pi, vmove);
-        wstate.pi = (wstate.pi + 1) % config.NUM_PAWNS;
-    }
-}
-
-export fn isFenceMoveLegal(x:usize, y:usize, dir:u8) bool {
-    const move = Move{ .fence = .{ .pos = .{ .x = @intCast(x), .y = @intCast(y) }, .dir = if (dir=='v') .vert else .horz } };
-    const vm = try wstate.gs.verifyMove(wstate.pi, move);
-    return vm.legal;
-}
-
-export fn isPawnMoveLegal(x:usize, y:usize) bool {
-    const move = Move{ .pawn = .{ .x = @intCast(x), .y = @intCast(y) } };
-    const vm = try wstate.gs.verifyMove(wstate.pi, move);
-    return vm.legal;
-}
-
-export fn moveFence(x:usize, y:usize, dir:u8) void {
-    const move = Move{ .fence = .{ .pos = .{ .x = @intCast(x), .y = @intCast(y) }, .dir = if (dir=='v') .vert else .horz } };
-    const vm = try wstate.gs.verifyMove(wstate.pi, move);
-    try wstate.gs.applyMove(wstate.pi, vm);
-
-    // move opponent
-    _ = getNextMoveInternal() catch 0;
-}
-
-export fn movePawn(x:usize, y:usize) void {
-    const move = Move{ .pawn = .{ .x = @intCast(x), .y = @intCast(y) } };
-    const vm = try wstate.gs.verifyMove(wstate.pi, move);
-    try wstate.gs.applyMove(wstate.pi, vm);
-
-    // move opponent
-    _ = getNextMoveInternal() catch 0;
-}
-
-export fn getPlayerIndex() usize {
-    return wstate.pi;
-}
-
-export fn hasWon(pi:usize) bool {
-    return wstate.gs.hasWon(pi);
-}
-
-export fn getNumFences() usize {
-    return wstate.gs.numFences;
-}
-export fn getFencePosX(i:usize) usize {
-    return wstate.gs.fences[i].pos.x;
-}
-export fn getFencePosY(i:usize) usize {
-    return wstate.gs.fences[i].pos.y;
-}
-export fn getFencePosDir(i:usize) usize {
-    return switch(wstate.gs.fences[i].dir) {
-        .vert => 'v',
-        .horz => 'h',
-    };
-}
-
-export fn getPawnPosX(pi:usize) usize {
-    return wstate.gs.getPawnPos(pi).x;
-}
-export fn getPawnPosY(pi:usize) usize {
-    return wstate.gs.getPawnPos(pi).y;
-}
-
-export fn getFencesRemaining(pi:usize) usize {
-    return wstate.gs.pawns[pi].numFencesRemaining;
-}
-
-export fn restart(pi:usize) void {
-    _ = gamesetup(pi) catch 0;
-}
-
-fn gamesetup(pi:usize) !void {
-    wstate = .{
-        .pi = pi,
-        .gs = GameState.init(),
-    };
-    config.players[0] = try UiAgent.make("machine");    // should be "null"
-    config.players[1] = try UiAgent.make("machine");
-    if (pi != 0) {
-        _ = getNextMoveInternal() catch 0;
-    }
-}
-
-export fn init() void {
-    _ = console.print("Hello world\n", .{}) catch 0;
-    _ = gamesetup(0) catch 0;
-}
-
-pub fn logFn(
-    comptime message_level: std.log.Level,
-    comptime scope: @TypeOf(.enum_literal),
-    comptime format: []const u8,
-    args: anytype,
-) void {
-    _ = message_level;
-    _ = scope;
-    _ = console.print(format ++ "\n", args) catch 0;
-}
-
-pub const std_options = .{
-    .logFn = logFn,
-    .log_level = .info,
-};
-
-pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
-    _ = ret_addr;
-    _ = trace;
-    @setCold(true);
-    _ = console.print("PANIC: {s}", .{msg}) catch 0;
-    while (true) {}
-}
-
 pub fn main() !void {
     var exitReq = false;
 
@@ -154,97 +25,91 @@ pub fn main() !void {
     config.players[0] = try UiAgent.make("human");
     config.players[1] = try UiAgent.make("machine");
 
-    if (!buildopts.web) {
-        try config.parseCommandLine();
-    }
+    try config.parseCommandLine();
 
     clock.initTime();
 
-    if (buildopts.web) {
-        return;
-    } else {
-        // loop for terminal
-        while (!exitReq) {
-            var display = try Display.init();
-            defer display.destroy();
+    // loop for terminal
+    while (!exitReq) {
+        var display = try Display.init();
+        defer display.destroy();
 
-            const sz = try Display.getSize();
-            if (config.mini) {
-                if (sz.width < 80 or sz.height < 24) {
-                    std.debug.print("Display too small, must be 80x24 or larger\r\n", .{});
-                    return;
-                }
-            } else {
-                if (sz.width < 80 or sz.height < 29) {
-                    std.debug.print("Display too small, must be 80x29 or larger\r\n", .{});
-                    return;
-                }
+        const sz = try Display.getSize();
+        if (config.mini) {
+            if (sz.width < 80 or sz.height < 24) {
+                std.debug.print("Display too small, must be 80x24 or larger\r\n", .{});
+                return;
+            }
+        } else {
+            if (sz.width < 80 or sz.height < 29) {
+                std.debug.print("Display too small, must be 80x29 or larger\r\n", .{});
+                return;
+            }
+        }
+
+        display.cls();
+        try display.paint();
+
+        var timeout: i32 = 0;   // default to not pausing, let machine agents run fast
+        var turnN: usize = 0;
+        var gameOver = false;
+        var lastMoves: [config.NUM_PAWNS]Move = undefined;
+        var gs = GameState.init();
+        var pi: usize = 0; // whose turn is it
+
+        try config.players[pi].selectMoveInteractive(&gs, pi);
+
+        while (!gameOver) {
+            const next = try display.getEvent(timeout);
+
+            try config.players[pi].process(&gs, pi);
+
+            if (try config.players[pi].handleEvent(next, &gs, pi)) {
+                timeout = 100;  // increase timeout if events being used for interaction
             }
 
-            display.cls();
-            try display.paint();
-
-            var timeout: i32 = 0;   // default to not pausing, let machine agents run fast
-            var turnN: usize = 0;
-            var gameOver = false;
-            var lastMoves: [config.NUM_PAWNS]Move = undefined;
-            var gs = GameState.init();
-            var pi: usize = 0; // whose turn is it
-
-            try config.players[pi].selectMoveInteractive(&gs, pi);
-
-            while (!gameOver) {
-                const next = try display.getEvent(timeout);
-
-                try config.players[pi].process(&gs, pi);
-
-                if (try config.players[pi].handleEvent(next, &gs, pi)) {
-                    timeout = 100;  // increase timeout if events being used for interaction
+            if (config.players[pi].getCompletedMove()) |move| {
+                // apply the move
+                try gs.applyMove(pi, move);
+                lastMoves[pi] = move.move;
+                if (pi == config.NUM_PAWNS - 1) { // final player to take turn
+                    try emitMoves(turnN, lastMoves);
+                    turnN += 1;
                 }
 
-                if (config.players[pi].getCompletedMove()) |move| {
-                    // apply the move
-                    try gs.applyMove(pi, move);
-                    lastMoves[pi] = move.move;
-                    if (pi == config.NUM_PAWNS - 1) { // final player to take turn
-                        try emitMoves(turnN, lastMoves);
-                        turnN += 1;
-                    }
-
-                    if (gs.hasWon(pi)) {
-                        config.wins[pi] += 1;
-                        gameOver = true;
-                    }
-
-                    // select next player to make a move
-                    pi = (pi + 1) % config.NUM_PAWNS;
-
-                    try config.players[pi].selectMoveInteractive(&gs, pi);
+                if (gs.hasWon(pi)) {
+                    config.wins[pi] += 1;
+                    gameOver = true;
                 }
 
-                switch (next) {
-                    .key => |k| switch (k) {
-                        .char => |c| switch (c) {
-                            'q' => {
-                                exitReq = true;
-                                break;
-                            },
-                            else => {},
+                // select next player to make a move
+                pi = (pi + 1) % config.NUM_PAWNS;
+
+                try config.players[pi].selectMoveInteractive(&gs, pi);
+            }
+
+            switch (next) {
+                .key => |k| switch (k) {
+                    .char => |c| switch (c) {
+                        'q' => {
+                            exitReq = true;
+                            break;
                         },
                         else => {},
                     },
                     else => {},
-                }
-
-                display.cls();
-                try drawGame(&display, &gs, pi);
-                try config.players[pi].paint(&display);
-
-                try display.paint();
+                },
+                else => {},
             }
-            if (!config.playForever) {
-                exitReq = true;
-            }
+
+            display.cls();
+            try drawGame(&display, &gs, pi);
+            try config.players[pi].paint(&display);
+
+            try display.paint();
+        }
+        if (!config.playForever) {
+            exitReq = true;
         }
     }
 }
