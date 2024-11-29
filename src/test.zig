@@ -573,28 +573,4 @@ test "gamerr1" {
     }
 }
 
-fn lessThan(context: void, a: u32, b: u32) std.math.Order {
-    _ = context;
-    return std.math.order(a, b);
-}
-
-test "q" {
-    var buffer: [1000]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&buffer);
-    const allocator = fba.allocator();
-
-    const pqlt = std.PriorityQueue(u32, void, lessThan);
-
-    var q = pqlt.init(allocator, {});
-    defer q.deinit();
-
-    try q.add(10);
-    try q.add(5);
-    try q.add(15);
-
-    while(q.count() > 0) {
-        _ = q.remove();
-    }
-}
-
 
