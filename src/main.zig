@@ -24,42 +24,87 @@ const WebState = struct {
 };
 var wstate:WebState = undefined;
 
-// FIXME to be provided by JS
-export fn getTimeUs() u32 {
-    return 0;
-}
-
 // exposed to JS
-export fn startGame() void {
-}
-export fn isMoveLegal(x:u32, y:u32) bool {
-    _ = console.print("ISLEGAL? {d},{d}\n", .{x,y}) catch 0;
-    return true;
-}
-
 fn getNextMoveInternal() !void {
+    wstate.pi = (wstate.pi + 1) % config.NUM_PAWNS;
+
+    // FIXME assumes move is available immediately, js should poll for it and call process repeatedly
     try config.players[wstate.pi].selectMoveInteractive(&wstate.gs, wstate.pi);
     try config.players[wstate.pi].process(&wstate.gs, wstate.pi);
     if (config.players[wstate.pi].getCompletedMove()) |vmove| {
         try wstate.gs.applyMove(wstate.pi, vmove);
-        var b1: [16]u8 = undefined;
-        const s1 = try vmove.move.toString(&b1);
-        _ = console.print("Move {s}\n", .{s1}) catch 0;
         wstate.pi = (wstate.pi + 1) % config.NUM_PAWNS;
     }
 }
 
-export fn getNextMove() void {
-    _ = console.print("GNM\n", .{}) catch 0;
+export fn isFenceMoveLegal(x:usize, y:usize, dir:u8) bool {
+    const move = Move{ .fence = .{ .pos = .{ .x = @intCast(x), .y = @intCast(y) }, .dir = if (dir=='v') .vert else .horz } };
+    const vm = try wstate.gs.verifyMove(wstate.pi, move);
+    return vm.legal;
+}
+
+export fn isPawnMoveLegal(x:usize, y:usize) bool {
+    const move = Move{ .pawn = .{ .x = @intCast(x), .y = @intCast(y) } };
+    const vm = try wstate.gs.verifyMove(wstate.pi, move);
+    return vm.legal;
+}
+
+export fn moveFence(x:usize, y:usize, dir:u8) void {
+    const move = Move{ .fence = .{ .pos = .{ .x = @intCast(x), .y = @intCast(y) }, .dir = if (dir=='v') .vert else .horz } };
+    const vm = try wstate.gs.verifyMove(wstate.pi, move);
+    try wstate.gs.applyMove(wstate.pi, vm);
+
+    // move opponent
     _ = getNextMoveInternal() catch 0;
 }
+
+export fn movePawn(x:usize, y:usize) void {
+    const move = Move{ .pawn = .{ .x = @intCast(x), .y = @intCast(y) } };
+    const vm = try wstate.gs.verifyMove(wstate.pi, move);
+    try wstate.gs.applyMove(wstate.pi, vm);
+
+    // move opponent
+    _ = getNextMoveInternal() catch 0;
+}
+
+export fn getPlayerIndex() usize {
+    return wstate.pi;
+}
+
+export fn hasWon(pi:usize) bool {
+    return wstate.gs.hasWon(pi);
+}
+
+export fn getNumFences() u32 {
+    return wstate.gs.numFences;
+}
+export fn getFencePosX(i:usize) u32 {
+    return wstate.gs.fences[i].pos.x;
+}
+export fn getFencePosY(i:usize) u32 {
+    return wstate.gs.fences[i].pos.y;
+}
+export fn getFencePosDir(i:usize) u32 {
+    return switch(wstate.gs.fences[i].dir) {
+        .vert => 'v',
+        .horz => 'h',
+    };
+}
+
+export fn getPawnPosX(pi:usize) u32 {
+    return wstate.gs.getPawnPos(pi).x;
+}
+export fn getPawnPosY(pi:usize) u32 {
+    return wstate.gs.getPawnPos(pi).y;
+}
+
 
 fn gamesetup() !void {
     wstate = .{
         .pi = 0,
         .gs = GameState.init(),
     };
-    config.players[0] = try UiAgent.make("machine");
+    config.players[0] = try UiAgent.make("machine");    // should be "null"
     config.players[1] = try UiAgent.make("machine");
 }
 
