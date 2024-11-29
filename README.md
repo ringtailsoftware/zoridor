@@ -12,13 +12,23 @@ Quoridor tutorials:
 
 # I just want to play! don't make me install Zig
 
+To play in the terminal:
+
     docker run --rm -it -v `pwd`:/app -w /app kassany/alpine-ziglang:0.13.0 zig build run
 
 # Running
 
 Get [Zig](https://ziglang.org/download/)
 
+Terminal version:
+
     zig build run
+
+Web version:
+
+    zig build -Dweb=true && make
+
+Browse to http://localhost:8000
 
 # Playing
 
