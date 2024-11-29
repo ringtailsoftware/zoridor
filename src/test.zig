@@ -353,6 +353,26 @@ test "gamestate-pawnmove" {
     try expect(!gs.canMovePawn(0, pos));
 }
 
+test "gamestate-jumponwin" {
+    // pawn should be able to end game by jumping onto opponent if they're blocking the goal line
+    var gs = GameState.init();
+
+    const f1 = PosDir{
+        .pos = .{ .x = 0, .y = 7 },
+        .dir = .vert,
+    };
+    gs = GameState.init();
+    gs.placeFence(0, f1);
+
+    gs.pawns[0].pos.x = 0;
+    gs.pawns[0].pos.y = 7;
+
+    gs.pawns[1].pos.x = 0;
+    gs.pawns[1].pos.y = 8;
+
+    try expect(gs.canMovePawn(0, .{.x=0, .y=8}));
+}
+
 test "coordpos" {
     // convert node id into coords and back
     var i: BitGraph.NodeId = 0;

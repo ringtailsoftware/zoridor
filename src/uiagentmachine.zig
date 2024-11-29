@@ -83,6 +83,9 @@ pub const UiAgentMachine = struct {
         const vm = VerifiedMove{ .move = move, .legal = true }; // we know it's safe
 
         try gs.applyMove(pi, vm); // move in clone
+        if (gs.hasWon(pi)) {    // top score for winning move
+            return 999999;
+        }
 
         const myPathlenPost = try calcPathlen(&gs, pi);
         const oppPathlenPost = try calcPathlen(&gs, (pi + 1) % config.NUM_PAWNS);
@@ -120,6 +123,11 @@ pub const UiAgentMachine = struct {
                 var bestScore: usize = 0;
                 var bestScoreIndex: usize = 0;
 
+                if (gs.hasGameEnded()) {
+                    self.state = .Idle;
+                    return;
+                }
+
                 // generate all legal moves
                 const numMoves = try gs.getAllLegalMoves(pi, &moves, 0);
                 // score them all
@@ -131,10 +139,12 @@ pub const UiAgentMachine = struct {
                         bestScore = scores[i];
                     }
                 }
-                //std.debug.print("SCORE = {d} BESTMOVE = {any}\r\n", .{bestScore, moves[bestScoreIndex]});
+                //std.debug.print("numMoves={d} SCORE = {d} BESTMOVE = {any}\r\n", .{numMoves, bestScore, moves[bestScoreIndex]});
+                //gs.print();
                 // play highest scoring move
                 self.nextMove = try gs.verifyMove(pi, moves[bestScoreIndex]);
                 if (!self.nextMove.legal) {
+                    //std.debug.print("move = {any}\r\n", .{self.nextMove});
                     return error.InvalidMoveErr;
                 }
                 self.state = .Completed;

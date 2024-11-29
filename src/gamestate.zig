@@ -8,13 +8,9 @@ pub const Move = union(enum) {
     const Self = @This();
     pawn: Pos,
     fence: PosDir,
-    skip: void,
 
     pub fn toString(self: Self, buf: []u8) ![]u8 {
         switch (self) {
-            else => {
-                return std.fmt.bufPrint(buf, "", .{});
-            },
             .pawn => |pawnmove| {
                 return std.fmt.bufPrint(buf, "{c}{c}", .{
                     'a' + @as(u8, @intCast(pawnmove.x)),
@@ -92,9 +88,6 @@ pub const GameState = struct {
 
     fn isLegalMove(self: *const Self, pi: usize, move: Move) !bool {
         switch (move) {
-            .skip => {
-                return false;
-            },
             .pawn => |pawnmove| {
                 return self.canMovePawn(pi, pawnmove);
             },
@@ -106,6 +99,15 @@ pub const GameState = struct {
 
     pub fn getFences(self: *const Self) []const PosDir {
         return self.fences[0..self.numFences];
+    }
+
+    pub fn hasGameEnded(self: *const Self) bool {
+        for (0..config.NUM_PAWNS) |i| {
+            if (self.hasWon(i)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     pub fn hasWon(self: *const Self, pi: usize) bool {
@@ -121,7 +123,6 @@ pub const GameState = struct {
 
     pub fn applyMove(self: *Self, pi: usize, vmove: VerifiedMove) !void {
         switch (vmove.move) {
-            .skip => {},
             .pawn => |pawnmove| {
                 self.movePawn(pi, pawnmove);
             },
@@ -148,12 +149,15 @@ pub const GameState = struct {
         for (0..self.pawns.len) |i| {
             if (i != pi) { // ignore self
                 // found an opponent pawn
-                // clone graph
-                // where opp pawn is, connect all of their outgoing edges to their incoming, so the node ceases to exist
-                // this will enable jumping over it
-                graph = BitGraph.clone(&graph);
-                const ni = BitGraph.coordPosToNodeId(.{ .x = @intCast(self.pawns[i].pos.x), .y = @intCast(self.pawns[i].pos.y) });
-                graph.delNode(ni);
+                // if opp pawn is on our goal line, don't remove it - as it's legal to end game by jumping onto it
+                if (self.pawns[i].pos.y != self.pawns[pi].goaly) {
+                    // clone graph
+                    // where opp pawn is, connect all of their outgoing edges to their incoming, so the node ceases to exist
+                    // this will enable jumping over it
+                    graph = BitGraph.clone(&graph);
+                    const ni = BitGraph.coordPosToNodeId(.{ .x = @intCast(self.pawns[i].pos.x), .y = @intCast(self.pawns[i].pos.y) });
+                    graph.delNode(ni);
+                }
             }
         }
         return graph;
@@ -213,6 +217,7 @@ pub const GameState = struct {
     }
 
     pub fn canMovePawn(self: *const Self, pi: usize, targetPos: Pos) bool {
+        std.debug.assert(targetPos.x < 9 and targetPos.y < 9);
         if (targetPos.x == self.pawns[pi].pos.x and targetPos.y == self.pawns[pi].pos.y) { // lands on self, no movement
             return false;
         }
@@ -222,8 +227,10 @@ pub const GameState = struct {
         for (0..self.pawns.len) |i| {
             if (i != pi) { // ignore self
                 if (targetPos.x == self.pawns[i].pos.x and targetPos.y == self.pawns[i].pos.y) {
-                    // move will land on a pawn
-                    return false;
+                    // move will land on a pawn, not allowed, unless it's a winning move
+                    if (targetPos.y != self.pawns[pi].goaly) {
+                        return false;
+                    }
                 } else {
                     graph = self.rerouteAroundPawns(pi);
                 }
