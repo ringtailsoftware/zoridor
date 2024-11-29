@@ -167,7 +167,7 @@ export class Zoridor {
                 //console.log(`P ${p.pawn.x},${p.pawn.y} (${x},${y})`);
                 if (globalInstance.exports.isPawnMoveLegal(p.pawn.x, p.pawn.y)) {
                     this.drawPawn(this.pawns[this.pi].x, this.pawns[this.pi].y, this.colourPawnsDim[this.pi], 0, false);   // old pos
-                    this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawns[this.pi], this.pawnRadius, true);  // new pos
+                    this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawns[this.pi], this.pawnRadius, false);  // new pos
                 } else {
                     this.drawPawn(p.pawn.x, p.pawn.y, this.colourPawnIllegal, 0, false);
                 }
@@ -229,6 +229,9 @@ export class Zoridor {
         if (!col) {
             return;
         }
+        if (highlight) {
+            col = '#ffffff';
+        }
         let td = document.getElementById(`cell${x*3},${y*3}`);
         td.style['border-top-left-radius'] = radius;
         td.style['background-color'] = col;
@@ -241,11 +244,6 @@ export class Zoridor {
         td = document.getElementById(`cell${x*3+1},${y*3+1}`);
         td.style['border-bottom-right-radius'] = radius;
         td.style['background-color'] = col;
-
-        if (highlight) {
-            // TBD
-        }
-
     }
 
     static drawPieces() {
@@ -271,7 +269,7 @@ export class Zoridor {
 
         for (let i=0;i<this.pawns.length;i++) {
             const p = this.pawns[i];
-            this.drawPawn(p.x, p.y, this.colourPawns[i], this.pawnRadius, i == this.pi);
+            this.drawPawn(p.x, p.y, this.colourPawns[i], this.pawnRadius, globalInstance.exports.hasWon(i));
         }
 
         this.drawStats();
@@ -512,5 +510,6 @@ export class Zoridor {
 
         this.drawPieces();
     }
+
 
 }
