@@ -26,6 +26,12 @@ Web version:
 
 Browse to http://localhost:8000
 
+# Development
+
+Auto-rebuild and reload on change
+
+    watchexec -r --stop-signal SIGKILL -e zig,html,css,js,zon -w src 'zig build -Dweb=true && zig build serve -- zig-out -p 8000'
+
 # Terminal mode controls
 
  - You are Player 1. Your objective is to move your red pawn from the top of the board to the bottom of the board
