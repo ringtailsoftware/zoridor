@@ -47,10 +47,13 @@ pub fn main() !void {
         .{ .request_path = "404", .file_path = "/index.html" },
     };
 
+    var etag_buf:[32]u8 = undefined;
+
     var static_http_file_server = try StaticHttpFileServer.init(.{
         .allocator = gpa,
         .root_dir = root_dir,
         .aliases = &aliases,
+        .etag = try std.fmt.bufPrint(&etag_buf, "{d}", .{std.time.nanoTimestamp()}),
     });
     defer static_http_file_server.deinit(gpa);
 
