@@ -31,7 +31,7 @@ export class Zoridor {
     static cellSz = 25; // px
     static statsCellSz = 10; // px
     static statw = 24;
-    static stath = 12;
+    static stath = 13;
 
     static colourBackground = 'rgb(175,138,100)';
     static colourPawnSquareEmpty = 'rgb(101,67,40)'; 
