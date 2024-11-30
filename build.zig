@@ -67,4 +67,24 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
+
+    // web server
+    const serve_exe = b.addExecutable(.{
+        .name = "serve",
+        .root_source_file = b.path("serve.zig"),
+        .target = stdTarget,
+        .optimize = optimize,
+    });
+    const StaticHttpFileServer = b.dependency("StaticHttpFileServer", .{
+        .target = stdTarget,
+        .optimize = optimize,
+    });
+
+    serve_exe.root_module.addImport("StaticHttpFileServer", StaticHttpFileServer.module("StaticHttpFileServer"));
+    const run_serve_exe = b.addRunArtifact(serve_exe);
+    if (b.args) |args| run_serve_exe.addArgs(args);
+
+    const serve_step = b.step("serve", "Serve a directory of files");
+    serve_step.dependOn(&run_serve_exe.step);
+
 }

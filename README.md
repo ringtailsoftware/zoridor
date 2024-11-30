@@ -22,7 +22,7 @@ Terminal version:
 
 Web version:
 
-    zig build -Dweb=true && make
+    zig build -Dweb=true && zig build serve -- zig-out -p 8000
 
 Browse to http://localhost:8000
 
