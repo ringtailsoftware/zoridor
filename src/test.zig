@@ -9,6 +9,9 @@ const Pos = @import("gamestate.zig").Pos;
 const Pawn = @import("gamestate.zig").Pawn;
 const Dir = @import("gamestate.zig").Dir;
 const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
+const config = @import("config.zig");
+const UiAgent = @import("ui.zig").UiAgent;
+const clock = @import("clock.zig");
 
 test "bitgraph-edge" {
     var g = BitGraph.init();
@@ -573,4 +576,31 @@ test "gamerr1" {
     }
 }
 
+test "speed" {
+    var pi:usize = 0;
+    config.players[0] = try UiAgent.make("random");
+    config.players[1] = try UiAgent.make("random");
+    const runs = 100;
 
+    clock.initTime();
+    const start = clock.millis();
+
+    for (0..runs) |_| {
+        var gs = GameState.init();
+        while(!gs.hasWon(0) and !gs.hasWon(1)) {
+            try config.players[pi].selectMoveInteractive(&gs, pi);
+            try config.players[pi].process(&gs, pi);
+            // FIXME assumes move is available immediately, should poll for it and call process repeatedly
+            if (config.players[pi].getCompletedMove()) |vmove| {
+                try gs.applyMove(pi, vmove);
+                pi = (pi + 1) % config.NUM_PAWNS;
+            }
+        }
+    }
+    const end = clock.millis();
+    std.debug.print("t={any}\r\n", .{end-start});
+
+    try expect(end-start < 3000);
+
+
+}
