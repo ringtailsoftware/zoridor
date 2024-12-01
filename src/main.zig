@@ -16,8 +16,6 @@ const emitMoves = @import("ui.zig").emitMoves;
 
 const buildopts = @import("buildopts");
 
-const console = @import("console.zig").getWriter().writer();
-
 pub fn main() !void {
     var exitReq = false;
 
