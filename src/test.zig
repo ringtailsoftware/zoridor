@@ -4,6 +4,7 @@ const expect = std.testing.expect;
 const BitGraph = @import("graph.zig").BitGraph;
 const GameState = @import("gamestate.zig").GameState;
 const PosDir = @import("gamestate.zig").PosDir;
+const Move = @import("gamestate.zig").Move;
 const PosPath = @import("gamestate.zig").PosPath;
 const Pos = @import("gamestate.zig").Pos;
 const Pawn = @import("gamestate.zig").Pawn;
@@ -12,6 +13,7 @@ const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 const config = @import("config.zig");
 const UiAgent = @import("ui.zig").UiAgent;
 const clock = @import("clock.zig");
+const GameRecord = @import("record.zig").GameRecord;
 
 test "bitgraph-edge" {
     var g = BitGraph.init();
@@ -574,6 +576,47 @@ test "gamerr1" {
     } else {
         try expect(false);
     }
+}
+
+test "record" {
+    var record = try GameRecord.init(std.heap.page_allocator);
+    defer record.deinit();
+
+    const moves:[4]Move = .{
+        .{ .pawn = .{ .x = 4, .y = 1 } },
+        .{ .pawn = .{ .x = 4, .y = 7 } },
+        .{ .fence = .{.pos = .{ .x = 7, .y = 7 }, .dir = .horz }},
+        .{ .fence = .{.pos = .{ .x = 0, .y = 1 }, .dir = .vert }},
+    };
+    const expectedRaw:[4]u8 = .{ 141, 195, 127, 16 };
+
+    // record all moves
+    for (moves) |m| {
+        try record.append(m);
+    }
+    
+    // check stored list is same
+    var storedMoves = record.getAllMoves();
+    try expect(storedMoves.len == moves.len);
+    for (0..moves.len) |i| {
+        try expect(std.meta.eql(storedMoves[i], moves[i]));
+    }
+
+    // get raw byte representation
+    var rawbuf:[128]u8 = undefined;
+    const raw = try record.encodeRaw(&rawbuf);
+    try expect(std.mem.eql(u8, &expectedRaw, raw));
+
+    // convert raw back to new record
+    var rec2 = try GameRecord.initFromBuf(std.heap.page_allocator, raw);
+    defer rec2.deinit();
+    storedMoves = rec2.getAllMoves();
+    try expect(storedMoves.len == moves.len);
+    for (0..moves.len) |i| {
+        try expect(std.meta.eql(storedMoves[i], moves[i]));
+    }
+
+    //std.debug.print("const expectedRaw:[4]u8 = .{any}", .{raw});
 }
 
 //test "speed" {

@@ -37,9 +37,9 @@ pub const VerifiedMove = struct {
     legal: bool,
 };
 
-pub const Dir = enum {
-    vert,
-    horz,
+pub const Dir = enum(u1) {
+    vert = 0,
+    horz = 1,
 
     pub fn flip(dir: Dir) Dir {
         switch (dir) {
