@@ -605,10 +605,11 @@ test "record" {
     // get raw byte representation
     var rawbuf:[128]u8 = undefined;
     const raw = try record.encodeRaw(&rawbuf);
+    try expect(raw.len == record.raw_calcSize());
     try expect(std.mem.eql(u8, &expectedRaw, raw));
 
     // convert raw back to new record
-    var rec2 = try GameRecord.initFromBuf(std.heap.page_allocator, raw);
+    var rec2 = try GameRecord.initFromRaw(std.heap.page_allocator, raw);
     defer rec2.deinit();
     storedMoves = rec2.getAllMoves();
     try expect(storedMoves.len == moves.len);
@@ -616,10 +617,21 @@ test "record" {
         try expect(std.meta.eql(storedMoves[i], moves[i]));
     }
 
+    // check Glendenning representation
     const s = try rec2.printGlendenningAlloc(std.heap.page_allocator);
     defer std.heap.page_allocator.free(s);
-
     try expect(std.mem.eql(u8, s, "1. e2 e8\n2. h8h a2v\n"));
+
+    // encode to base64
+    const sb64 = try record.toStringBase64Alloc(std.heap.page_allocator);
+    // decode base64 and check
+    var rec3 = try GameRecord.initFromBase64(std.heap.page_allocator, sb64);
+    defer rec3.deinit();
+    storedMoves = rec3.getAllMoves();
+    try expect(storedMoves.len == moves.len);
+    for (0..moves.len) |i| {
+        try expect(std.meta.eql(storedMoves[i], moves[i]));
+    }
 }
 
 //test "speed" {

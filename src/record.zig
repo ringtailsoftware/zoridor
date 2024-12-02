@@ -60,6 +60,25 @@ pub const GameRecord = struct {
         isPawn: u1 = 0, // msb
     };
 
+    pub fn toStringBase64Alloc(self: *const Self, alloc: std.mem.Allocator) ![]u8 {
+        const b64 = std.base64.standard.Encoder;
+        const rawbuf = try alloc.alloc(u8, self.raw_calcSize());
+        defer alloc.free(rawbuf);
+        const raw = try self.encodeRaw(rawbuf);
+        const b64buf = try alloc.alloc(u8, self.b64_calcSize());
+        _ = b64.encode(b64buf, raw);
+        return b64buf;
+    }
+
+    fn b64_calcSize(self: *const Self) usize {
+        const b64 = std.base64.standard.Encoder;
+        return b64.calcSize(self.raw_calcSize());
+    }
+
+    pub fn raw_calcSize(self: *const Self) usize {
+        return self.moves.items.len;  // 1 byte per move
+    }
+
     pub fn encodeRaw(self: *const Self, buf: []u8) ![]u8 {
         if (buf.len < self.moves.items.len) {
             return error.BufTooSmallErr;
@@ -83,7 +102,16 @@ pub const GameRecord = struct {
         return buf[0..self.moves.items.len];
     }
 
-    pub fn initFromBuf(alloc: std.mem.Allocator, buf: []const u8) !Self {
+    pub fn initFromBase64(alloc: std.mem.Allocator, b64src: []const u8) !Self {
+        const b64 = std.base64.standard.Decoder;
+        const rawLen = try b64.calcSizeForSlice(b64src);
+        const rawbuf = try alloc.alloc(u8, rawLen);
+        defer alloc.free(rawbuf);
+        try b64.decode(rawbuf, b64src);
+        return try initFromRaw(alloc, rawbuf);
+    }
+
+    pub fn initFromRaw(alloc: std.mem.Allocator, buf: []const u8) !Self {
         var self = try Self.init(alloc);
         errdefer self.deinit();
         for (buf) |c| {
