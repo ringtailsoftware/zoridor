@@ -62,6 +62,8 @@ To watch machine vs machine matches forever:
 
     zig build run -- -1 machine -2 machine -f
 
+On exit, a record of all moves is printed in both Glendenning format and base64. The base64 format can be reloaded with `zig build run -- -l jcNJujqxKRY2sA==`
+
 # Theory
 
 For a comprehensive examination of playing Quoridor, see [Lisa Glendenning's Thesis](https://www.labri.fr/perso/renault/working/teaching/projets/files/glendenning_ugrad_thesis.pdf)

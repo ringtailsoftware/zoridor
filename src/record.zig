@@ -36,7 +36,7 @@ pub const GameRecord = struct {
         for (self.moves.items, 0..) |m, i| {
             const vm = if (verify) try gs.verifyMove(i%2, m)
                 else VerifiedMove{.legal = true, .move = m};
-            gs.applyMove(vm);
+            try gs.applyMove(i%2, vm);
         }
         return gs;
     }

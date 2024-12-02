@@ -24,6 +24,7 @@ pub var RANDOMNESS: u32 = 0;
 
 pub var playForever = false;
 pub var players:[NUM_PAWNS]UiAgent = undefined;
+pub var b64GameStart:?[]u8 = null;
 
 // for holding last turn string
 pub var lastTurnBuf: [32]u8 = undefined;
@@ -66,6 +67,10 @@ pub fn parseCommandLine() !void {
     const mini_opt = Arg.booleanOption("mini", 'm', "Mini display < 80x24");
     try zoridor.addArg(mini_opt);
 
+    var load_opt = Arg.singleValueOption("load", 'l', "Load base64 game");
+    load_opt.setValuePlaceholder("");
+    try zoridor.addArg(load_opt);
+
     const matches = try app.parseProcess();
 
     if (matches.containsArg("forever")) {
@@ -76,26 +81,36 @@ pub fn parseCommandLine() !void {
         mini = true;
     }
 
+    if (matches.containsArg("load")) {
+        if (matches.getSingleValue("load")) |b64str| {
+            b64GameStart = try allocator.dupe(u8, b64str);
+        }
+    }
+
     if (matches.containsArg("randseed")) {
-        const seedStr = matches.getSingleValue("randseed").?;
-        const i = std.fmt.parseInt(u32, seedStr, 10) catch return;
-        RANDOMSEED = i;
+        if (matches.getSingleValue("randseed")) |seedStr| {
+            const i = std.fmt.parseInt(u32, seedStr, 10) catch return;
+            RANDOMSEED = i;
+        }
     }
 
     if (matches.containsArg("randscore")) {
-        const randStr = matches.getSingleValue("randscore").?;
-        const i = std.fmt.parseInt(u32, randStr, 10) catch return;
-        RANDOMNESS = i;
+        if (matches.getSingleValue("randscore")) |randStr| {
+            const i = std.fmt.parseInt(u32, randStr, 10) catch return;
+            RANDOMNESS = i;
+        }
     }
 
     if (matches.containsArg("player1")) {
-        const typ = matches.getSingleValue("player1").?;
-        players[0] = try UiAgent.make(typ);
+        if (matches.getSingleValue("player1")) |typ| {
+            players[0] = try UiAgent.make(typ);
+        }
     }
 
     if (matches.containsArg("player2")) {
-        const typ = matches.getSingleValue("player2").?;
-        players[1] = try UiAgent.make(typ);
+        if (matches.getSingleValue("player2")) |typ| {
+            players[1] = try UiAgent.make(typ);
+        }
     }
 }
 

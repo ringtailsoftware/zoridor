@@ -29,6 +29,7 @@ pub const Display = struct {
     liveBufIndex: u1,
     offsBufIndex: u1,
     forceUpdate: bool,
+    active: bool,
 
     pub fn init() !Self {
         const stdin = io.getStdIn();
@@ -43,6 +44,7 @@ pub const Display = struct {
             .liveBufIndex = 0,
             .offsBufIndex = 1,
             .forceUpdate = true,
+            .active = true,
         };
     }
 
@@ -52,10 +54,19 @@ pub const Display = struct {
     }
 
     pub fn destroy(self: *Self) void {
-        const writer = io.getStdOut().writer();
-        cursor.show(writer) catch {};
-        cursor.goTo(writer, 0, DISPLAYH) catch {};
-        self.raw_term.disableRawMode() catch {};
+        // allow multiple calls to destroy
+        if (self.active) {
+            self.active = false;
+            self.cls();
+            self.paint() catch {};
+            const writer = io.getStdOut().writer();
+            cursor.show(writer) catch {};
+            cursor.goTo(writer, 1, 1) catch {};
+            color.bg256(writer, .black) catch {};
+            color.fg256(writer, .white) catch {};
+            style.noBold(writer) catch {};
+            self.raw_term.disableRawMode() catch {};
+        }
     }
 
     pub fn getEvent(self: *Self, timeout: i32) !events.Event {

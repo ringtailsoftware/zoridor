@@ -13,6 +13,7 @@ const UiAgentHuman = @import("uiagenthuman.zig").UiAgentHuman;
 const UiAgentMachine = @import("uiagentmachine.zig").UiAgentMachine;
 const drawGame = @import("ui.zig").drawGame;
 const emitMoves = @import("ui.zig").emitMoves;
+const GameRecord = @import("record.zig").GameRecord;
 
 const buildopts = @import("buildopts");
 
@@ -23,7 +24,9 @@ pub fn main() !void {
     config.players[0] = try UiAgent.make("human");
     config.players[1] = try UiAgent.make("machine");
 
-    try config.parseCommandLine();
+    config.parseCommandLine() catch {
+        std.process.exit(1);
+    };
 
     clock.initTime();
 
@@ -55,7 +58,17 @@ pub fn main() !void {
         var gs = GameState.init();
         var pi: usize = 0; // whose turn is it
 
+        if (config.b64GameStart) |b64s| {
+            // setup initial gamestate from provided b64 string
+            const rec = try GameRecord.initFromBase64(std.heap.page_allocator, b64s);
+            gs = try rec.toGameState(true);
+        }
+
         try config.players[pi].selectMoveInteractive(&gs, pi);
+
+        var gameRecord = try GameRecord.init(std.heap.page_allocator);
+        defer gameRecord.deinit();
+
 
         while (!gameOver) {
             const next = try display.getEvent(timeout);
@@ -69,6 +82,8 @@ pub fn main() !void {
             if (config.players[pi].getCompletedMove()) |move| {
                 // apply the move
                 try gs.applyMove(pi, move);
+                try gameRecord.append(move.move);
+
                 lastMoves[pi] = move.move;
                 if (pi == config.NUM_PAWNS - 1) { // final player to take turn
                     try emitMoves(turnN, lastMoves);
@@ -108,6 +123,15 @@ pub fn main() !void {
         }
         if (!config.playForever) {
             exitReq = true;
+            // end terminal display and print game summary
+            display.destroy();
+            const writer = std.io.getStdOut().writer();
+            const glend = try gameRecord.printGlendenningAlloc(std.heap.page_allocator);
+            defer std.heap.page_allocator.free(glend);
+            _ = try writer.print("{s}\n", .{glend});
+            const b64 = try gameRecord.toStringBase64Alloc(std.heap.page_allocator);
+            defer std.heap.page_allocator.free(b64);
+            _ = try writer.print("{s}\n", .{b64});
         }
     }
 }
