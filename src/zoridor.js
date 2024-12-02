@@ -34,6 +34,7 @@ export class Zoridor {
     static stath = 13;
 
     static colourBackground = 'rgb(175,138,100)';
+    static colourFrame = 'rgb(155,118,80)';
     static colourPawnSquareEmpty = 'rgb(101,67,40)'; 
     static colourFence = 'rgb(229,203,67)';
     static colourFenceIllegal = null;
@@ -375,7 +376,7 @@ export class Zoridor {
         let tbl = document.createElement('table');
         tbl.style.width = (this.cellSz * dim) + 'px';
         tbl.style.height = (this.cellSz * dim) + 'px';
-        tbl.style.border = '30px ridge ' + this.colourBackground;
+        tbl.style.border = '30px ridge ' + this.colourFrame;
         tbl.style['border-spacing'] = '0px';
         tbl.style['background-color'] = this.colourBackground;
 
@@ -437,7 +438,7 @@ export class Zoridor {
         tbl = document.createElement('table');
         tbl.style.width = (this.cellSz * dim) + 'px';
         tbl.style.height = (this.cellSz * dim) + 'px';
-        tbl.style.border = '30px ridge ' + this.colourBackground;
+        tbl.style.border = '30px ridge ' + this.colourFrame;
         tbl.style['border-spacing'] = '0px';
         tbl.style['background-color'] = 'rgba(0,0,0,0)';
 
