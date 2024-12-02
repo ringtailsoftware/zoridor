@@ -616,7 +616,10 @@ test "record" {
         try expect(std.meta.eql(storedMoves[i], moves[i]));
     }
 
-    //std.debug.print("const expectedRaw:[4]u8 = .{any}", .{raw});
+    const s = try rec2.printGlendenningAlloc(std.heap.page_allocator);
+    defer std.heap.page_allocator.free(s);
+
+    try expect(std.mem.eql(u8, s, "1. e2 e8\n2. h8h a2v\n"));
 }
 
 //test "speed" {

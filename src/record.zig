@@ -104,26 +104,34 @@ pub const GameRecord = struct {
         return self;
     }
 
-    pub fn printGlendenning(self: *const Self) !void {
+    pub fn printGlendenningAlloc(self: *const Self, alloc: std.mem.Allocator) ![]u8 {
         // 1. e8 a2
         // 2. a1v e7
         // ...
-
-        // FIXME, print to string
         var turn:usize = 1;
+        var outstr:[]u8 = try std.fmt.allocPrint(alloc, "", .{});
+        var old:[]u8 = undefined;
         for (self.moves.items, 0..) |m, i| {
             if (i % 2 == 0) {
-                std.debug.print("{d}.", .{turn});
+                old = outstr;
+                outstr = try std.fmt.allocPrint(alloc, "{s}{d}.", .{old, turn});
+                alloc.free(old);
             }
             var mbuf:[16]u8 = undefined;
             const s = try m.toString(&mbuf);
-            std.debug.print(" {s}", .{s});
+            
+            old = outstr;
+            outstr = try std.fmt.allocPrint(alloc, "{s} {s}", .{old, s});
+            alloc.free(old);
+
             if (i % 2 == 1) {
-                std.debug.print("\r\n", .{});
+                old = outstr;
+                outstr = try std.fmt.allocPrint(alloc, "{s}\n", .{old});
+                alloc.free(old);
                 turn += 1;
             }
         }
-        std.debug.print("\r\n\r\n", .{});
+        return outstr;
     }
 };
  
