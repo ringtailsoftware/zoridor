@@ -96,7 +96,8 @@
             document.getElementById("gamebgdiv"),
             document.getElementById("gamediv"),
             document.getElementById("statsbgdiv"),
-            document.getElementById("statsdiv")
+            document.getElementById("statsdiv"),
+            document.getElementById("record")
         );
         await Zoridor.start();
 
@@ -140,6 +141,9 @@
                     </p>
                     <p>
                         <input id="restart1" class="button" role="button" type="button" value="Restart: Move second"/>
+                    </p>
+                    <p>
+                        <input type="text" value="" id="record" readonly>
                     </p>
                 </form>
             </p>

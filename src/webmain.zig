@@ -6,6 +6,7 @@ const clock = @import("clock.zig");
 const config = @import("config.zig");
 
 const GameState = @import("gamestate.zig").GameState;
+const GameRecord = @import("record.zig").GameRecord;
 const Move = @import("gamestate.zig").Move;
 
 const UiAgent = @import("ui.zig").UiAgent;
@@ -21,8 +22,22 @@ const console = @import("console.zig").getWriter().writer();
 const WebState = struct {
     pi: usize,
     gs: GameState,
+    record: GameRecord,
+    recordB64Buf: ?[]const u8,
 };
 var wstate:WebState = undefined;
+var inited = false;
+
+fn updateRecord(move:Move) !void {
+    try wstate.record.append(move);
+    // generate base64 for game
+    if (wstate.recordB64Buf) |buf| {
+        std.heap.page_allocator.free(buf);
+        wstate.recordB64Buf = null;
+    }
+    wstate.recordB64Buf = try wstate.record.toStringBase64Alloc(std.heap.page_allocator);
+}
+
 
 // exposed to JS
 fn getNextMoveInternal() !void {
@@ -33,6 +48,8 @@ fn getNextMoveInternal() !void {
     try config.players[wstate.pi].process(&wstate.gs, wstate.pi);
     if (config.players[wstate.pi].getCompletedMove()) |vmove| {
         try wstate.gs.applyMove(wstate.pi, vmove);
+        try updateRecord(vmove.move);
+        // next player
         wstate.pi = (wstate.pi + 1) % config.NUM_PAWNS;
     }
 }
@@ -53,6 +70,7 @@ export fn moveFence(x:usize, y:usize, dir:u8) void {
     const move = Move{ .fence = .{ .pos = .{ .x = @intCast(x), .y = @intCast(y) }, .dir = if (dir=='v') .vert else .horz } };
     const vm = try wstate.gs.verifyMove(wstate.pi, move);
     try wstate.gs.applyMove(wstate.pi, vm);
+    _ = updateRecord(vm.move) catch 0;
 
     // move opponent
     _ = getNextMoveInternal() catch 0;
@@ -62,6 +80,7 @@ export fn movePawn(x:usize, y:usize) void {
     const move = Move{ .pawn = .{ .x = @intCast(x), .y = @intCast(y) } };
     const vm = try wstate.gs.verifyMove(wstate.pi, move);
     try wstate.gs.applyMove(wstate.pi, vm);
+    _ = updateRecord(vm.move) catch 0;
 
     // move opponent
     _ = getNextMoveInternal() catch 0;
@@ -106,11 +125,41 @@ export fn restart(pi:usize) void {
     _ = gamesetup(pi) catch 0;
 }
 
+export fn allocUint8(length: u32) [*]const u8 {
+    const slice = std.heap.page_allocator.alloc(u8, length) catch
+        @panic("failed to allocate memory");
+    return slice.ptr;
+}
+
+export fn getGameRecordPtr() [*]const u8 {
+    if (wstate.recordB64Buf) |b| {
+        return b.ptr;
+    } else {
+        return @ptrFromInt(0xDEADBEEF);  // len will be 0, so ignored
+    }
+}
+export fn getGameRecordLen() usize {
+    if (wstate.recordB64Buf) |b| {
+        return b.len;
+    } else {
+        return 0;
+    }
+}
+
 fn gamesetup(pi:usize) !void {
+    if (inited) {
+        wstate.record.deinit();
+        if (wstate.recordB64Buf != null) {
+            std.heap.page_allocator.free(wstate.recordB64Buf.?);
+        }
+    }
     wstate = .{
         .pi = pi,
         .gs = GameState.init(),
+        .record = try GameRecord.init(std.heap.page_allocator),
+        .recordB64Buf = null,
     };
+    inited = true;
     config.players[0] = try UiAgent.make("machine");    // should be "null"
     config.players[1] = try UiAgent.make("machine");
     if (pi != 0) {

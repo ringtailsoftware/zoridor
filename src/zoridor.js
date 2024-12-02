@@ -60,9 +60,23 @@ export class Zoridor {
     static pawns = [];
     static pi = 0;  // which player's turn
 
+    static recordElem = null;
+
     static getInstance() {
         return globalInstance;
     }
+
+    static getGameRecord = () => {
+        const len = globalInstance.exports.getGameRecordLen();
+        if (len > 0) {
+            const wasmMemoryArray = new Uint8Array(globalInstance.exports.memory.buffer);
+            var arr = new Uint8Array(wasmMemoryArray.buffer, globalInstance.exports.getGameRecordPtr(), len);
+            let string = new TextDecoder().decode(arr);
+            return string;
+        } else {
+            return '';
+        }
+    };
 
     static async init(wasmFile) {
         // fetch wasm and instantiate
@@ -364,13 +378,15 @@ export class Zoridor {
             this.gameOver = true;
         }
 
-        //console.log(this.fences);
+        this.recordElem.value = this.getGameRecord();
     }
 
-    static tableCreate(bgParentElem, parentElem, statsBgElem, statsElem) {
+    static tableCreate(bgParentElem, parentElem, statsBgElem, statsElem, recordElem) {
         const pawnSz = 2;
         const fenceSz = 1;
         const dim = pawnSz*9 + fenceSz*8;
+
+        this.recordElem = recordElem;
 
         // background display (board)
         let tbl = document.createElement('table');
