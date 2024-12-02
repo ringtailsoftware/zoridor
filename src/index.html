@@ -9,6 +9,13 @@
             font-family: Inter,-apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif;
 
         }
+        .label {
+            font-family: Inter,-apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: normal;
+            line-height: 1.5;
+        }
         .button {
             appearance: none;
             backface-visibility: hidden;
@@ -102,10 +109,10 @@
         await Zoridor.start();
 
         document.getElementById("restart0").onclick = () => {
-            Zoridor.restart(0);
+            Zoridor.restart(0, document.getElementById("record").value);
         };
         document.getElementById("restart1").onclick = () => {
-            Zoridor.restart(1);
+            Zoridor.restart(1, document.getElementById("record").value);
         };
     });
 </script>
@@ -137,13 +144,13 @@
             <p>
                 <form>
                     <p>
-                        <input id="restart0" class="button" role="button" type="button" value="Restart: Move first"/>
+                        <input id="restart0" class="button" role="button" type="button" value="Load game log and go first"/>
                     </p>
                     <p>
-                        <input id="restart1" class="button" role="button" type="button" value="Restart: Move second"/>
+                        <input id="restart1" class="button" role="button" type="button" value="Load game log and go second"/>
                     </p>
                     <p>
-                        <input type="text" value="" id="record" readonly>
+                        <span class="label">Game Log: </label><input type="text" value="" id="record">
                     </p>
                 </form>
             </p>

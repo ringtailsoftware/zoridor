@@ -23,7 +23,9 @@ const WebState = struct {
     pi: usize,
     gs: GameState,
     record: GameRecord,
-    recordB64Buf: ?[]const u8,
+    recordB64Buf: ?[]const u8,  // base64 of all moves performed so far
+    startB64Buf: [1024]u8,  // buffer to setup initial game state
+    start: ?[]u8,
 };
 var wstate:WebState = undefined;
 var inited = false;
@@ -37,7 +39,6 @@ fn updateRecord(move:Move) !void {
     }
     wstate.recordB64Buf = try wstate.record.toStringBase64Alloc(std.heap.page_allocator);
 }
-
 
 // exposed to JS
 fn getNextMoveInternal() !void {
@@ -121,14 +122,24 @@ export fn getFencesRemaining(pi:usize) usize {
     return wstate.gs.pawns[pi].numFencesRemaining;
 }
 
-export fn restart(pi:usize) void {
-    _ = gamesetup(pi) catch 0;
+export fn restart(pi:usize, setupB64Len:u32) bool {
+    const b64input = wstate.startB64Buf[0..setupB64Len];
+    //_ = console.print("RESTART setupB64Len={d} s={s}\n", .{setupB64Len, b64input}) catch 0;
+    return gamesetup(pi, b64input) catch false;
 }
 
 export fn allocUint8(length: u32) [*]const u8 {
     const slice = std.heap.page_allocator.alloc(u8, length) catch
         @panic("failed to allocate memory");
     return slice.ptr;
+}
+
+export fn getGameStartRecordLen() usize {
+    return wstate.startB64Buf.len;
+}
+
+export fn getGameStartRecordPtr() [*]const u8 {
+    return (&wstate.startB64Buf).ptr;
 }
 
 export fn getGameRecordPtr() [*]const u8 {
@@ -146,18 +157,35 @@ export fn getGameRecordLen() usize {
     }
 }
 
-fn gamesetup(pi:usize) !void {
+fn gamesetup(piStart:usize, b64O:?[]const u8) !bool {
     if (inited) {
         wstate.record.deinit();
         if (wstate.recordB64Buf != null) {
             std.heap.page_allocator.free(wstate.recordB64Buf.?);
         }
     }
+
+    var pi = piStart;
+    var gs = GameState.init();
+    var recordB64Buf:?[]const u8 = null;
+    var record:GameRecord = undefined;
+    if (b64O) |b64| {
+        // user supplied starting state
+        record = try GameRecord.initFromBase64(std.heap.page_allocator, b64);
+        gs = try record.toGameState(true);
+        recordB64Buf = try record.toStringBase64Alloc(std.heap.page_allocator);
+        pi += record.getAllMoves().len % 2;
+    } else {
+        record = try GameRecord.init(std.heap.page_allocator);
+    }
+
     wstate = .{
         .pi = pi,
-        .gs = GameState.init(),
-        .record = try GameRecord.init(std.heap.page_allocator),
-        .recordB64Buf = null,
+        .gs = gs,
+        .record = record,
+        .recordB64Buf = recordB64Buf,
+        .startB64Buf = undefined,
+        .start = null,
     };
     inited = true;
     config.players[0] = try UiAgent.make("machine");    // should be "null"
@@ -165,11 +193,12 @@ fn gamesetup(pi:usize) !void {
     if (pi != 0) {
         _ = getNextMoveInternal() catch 0;
     }
+    return true;
 }
 
 export fn init() void {
     _ = console.print("Hello world\n", .{}) catch 0;
-    _ = gamesetup(0) catch 0;
+    _ = gamesetup(0, null) catch 0;
 }
 
 pub fn logFn(

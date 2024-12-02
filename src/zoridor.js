@@ -99,9 +99,19 @@ export class Zoridor {
         });
     }
 
-    static restart(pi) {
+    static restart(pi, b64) {
         this.gameOver = false;
-        globalInstance.exports.restart(pi);
+
+        const wasmMemoryArray = new Uint8Array(globalInstance.exports.memory.buffer);
+        if (b64.length > globalInstance.exports.getGameStartRecordLen()) {
+            alert("too big");
+        }
+        var arr = new Uint8Array(wasmMemoryArray.buffer, globalInstance.exports.getGameStartRecordPtr(), b64.length);
+        arr.set(new TextEncoder().encode(b64));
+
+        if (!globalInstance.exports.restart(pi, b64.length)) {
+            alert("bad data");
+        }
         this.fetchState();
         this.drawPieces();
     }
