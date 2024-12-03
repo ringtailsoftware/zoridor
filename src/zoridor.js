@@ -522,7 +522,6 @@ export class Zoridor {
         for (let y=0;y<8;y++) {
             for (let x=0;x<8;x++) {
                 let td = document.getElementById(`cell${x*3+2},${y*3+2}`);
-                console.log(`cell${x*3+2},${y*3+2}`);
                 td.style['background-color'] = 'red';
                 td.onmouseout = function() {
                     that.mouseOut(x, y);    // x,y ignored
