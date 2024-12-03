@@ -126,6 +126,9 @@ export class Zoridor {
     }
 
     static decodePos(x, y) {
+        if (x<0 || x > 3*9 || y<0 || y>3*9) {
+            return null;
+        }
         let gx = Math.floor(x/3);    // game coords
         let gy = Math.floor(y/3);
 
@@ -156,7 +159,8 @@ export class Zoridor {
         }
        
         // dead centre spot, move left giving horizontal fence
-        return this.decodePos(x-1, y);
+        //return this.decodePos(x-1, y);
+        return null;
     }
 
     static click(x, y) {
@@ -506,11 +510,108 @@ export class Zoridor {
                 const td = tr.insertCell();
                 td.appendChild(document.createTextNode(""));
                 td.style['background-color'] = 'rgba(0,0,0,0)';
-                td.style.transition = '0.1s';
+                td.style.transition = '0.9s';
                 td.id = `statbgcell${x},${y}`
                 td.style['background-color'] = this.colourBackground;
             }
         }
+
+        // add in wall corner handlers
+        const cellSz = this.cellSz;
+        const that = this;
+        for (let y=0;y<8;y++) {
+            for (let x=0;x<8;x++) {
+                let td = document.getElementById(`cell${x*3+2},${y*3+2}`);
+                console.log(`cell${x*3+2},${y*3+2}`);
+                td.style['background-color'] = 'red';
+                td.onmouseout = function() {
+                    that.mouseOut(x, y);    // x,y ignored
+                };
+                td.onclick = function(e) {
+                    // FIXME repeats mouseover
+                    var rect = e.target.getBoundingClientRect();
+                    var cx = e.clientX - rect.left; //x position within the element.
+                    var cy = e.clientY - rect.top;  //y position within the element.
+                    cx -= cellSz/2;  // move to origin
+                    cy -= cellSz/2;
+
+                    // 4 points, which is nearest
+                    let pts = [
+                        [0, cellSz/2],
+                        [cellSz/2, 0],
+                        [0, -cellSz/2],
+                        [-cellSz/2, 0]
+                    ];
+                    let nearestIndex = 0;
+                    let bestDist = cellSz*cellSz;   // bigger than any can be
+                    for (let i=0;i<pts.length;i++) {
+                        const distsq = (cx - pts[i][0])*(cx - pts[i][0]) + (cy - pts[i][1])*(cy - pts[i][1]);
+                        if (distsq < bestDist) {
+                            bestDist = distsq;
+                            nearestIndex = i;
+                        }
+                    }
+                    //console.log(nearestIndex);
+                    let xpos = x*3+2;
+                    let ypos = y*3+2;
+                    if (nearestIndex == 0) {
+                        that.click(xpos, ypos+1);
+                    }
+                    if (nearestIndex == 1) {
+                        that.click(xpos+1, ypos);
+                    }
+                    if (nearestIndex == 2) {
+                        that.click(xpos, ypos-1);
+                    }
+                    if (nearestIndex == 3) {
+                        that.click(xpos-1, ypos);
+                    }
+                }
+
+                td.onmousemove = function(e) {
+                    // FIXME repeats click
+                    that.mouseOut(x, y);    // x,y ignored
+                    var rect = e.target.getBoundingClientRect();
+                    var cx = e.clientX - rect.left; //x position within the element.
+                    var cy = e.clientY - rect.top;  //y position within the element.
+                    cx -= cellSz/2;  // move to origin
+                    cy -= cellSz/2;
+
+                    // 4 points, which is nearest
+                    let pts = [
+                        [0, cellSz/2],
+                        [cellSz/2, 0],
+                        [0, -cellSz/2],
+                        [-cellSz/2, 0]
+                    ];
+                    let nearestIndex = 0;
+                    let bestDist = cellSz*cellSz;   // bigger than any can be
+                    for (let i=0;i<pts.length;i++) {
+                        const distsq = (cx - pts[i][0])*(cx - pts[i][0]) + (cy - pts[i][1])*(cy - pts[i][1]);
+                        if (distsq < bestDist) {
+                            bestDist = distsq;
+                            nearestIndex = i;
+                        }
+                    }
+                    //console.log(nearestIndex);
+                    let xpos = x*3+2;
+                    let ypos = y*3+2;
+                    if (nearestIndex == 0) {
+                        that.mouseOver(xpos, ypos+1);
+                    }
+                    if (nearestIndex == 1) {
+                        that.mouseOver(xpos+1, ypos);
+                    }
+                    if (nearestIndex == 2) {
+                        that.mouseOver(xpos, ypos-1);
+                    }
+                    if (nearestIndex == 3) {
+                        that.mouseOver(xpos-1, ypos);
+                    }
+                }
+            }
+        }
+
 
         statsBgElem.appendChild(tbl);
 
@@ -527,7 +628,7 @@ export class Zoridor {
                 const td = tr.insertCell();
                 td.appendChild(document.createTextNode(""));
                 td.style['background-color'] = 'rgba(0,0,0,0)';
-                td.style.transition = '0.1s';
+                td.style.transition = '0.3s';
                 td.id = `statcell${x},${y}`
                 td.style['background-color'] = 'rgba(0,0,0,0)';
             }
