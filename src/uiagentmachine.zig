@@ -33,9 +33,9 @@ pub const UiAgentMachine = struct {
         if (!randInited) {
             randInited = true;
             if (config.RANDOMSEED) |seed| {
-                prng = std.rand.DefaultPrng.init(@intCast(seed));
+                prng = std.Random.DefaultPrng.init(@intCast(seed));
             } else {
-                prng = std.rand.DefaultPrng.init(@intCast(clock.millis()));
+                prng = std.Random.DefaultPrng.init(@intCast(clock.millis()));
             }
             rand = prng.random();
         }

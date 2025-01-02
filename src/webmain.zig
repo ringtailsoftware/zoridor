@@ -209,18 +209,16 @@ pub fn logFn(
 ) void {
     _ = message_level;
     _ = scope;
-    _ = console.print(format ++ "\n", args) catch 0;
+    _ = console.print(format, args) catch 0;
 }
 
-pub const std_options = .{
+pub const std_options: std.Options = .{
     .logFn = logFn,
-    .log_level = .info,
 };
 
 pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
     _ = ret_addr;
     _ = trace;
-    @setCold(true);
     _ = console.print("PANIC: {s}", .{msg}) catch 0;
     while (true) {}
 }
