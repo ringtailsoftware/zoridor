@@ -34,6 +34,10 @@ pub fn build(b: *std.Build) void {
     if (web) {
         std.debug.print("Building for web\n", .{});
         b.installFile("src/index.html", "index.html");
+        b.installFile("src/cart.html", "cart.html");
+        b.installFile("src/cart.wasm", "cart.wasm");
+        b.installFile("src/wasm4.css", "wasm4.css");
+        b.installFile("src/wasm4.js", "wasm4.js");
         b.installFile("src/zoridor.js", "zoridor.js");
         b.installFile("src/live.js", "live.js");
         exe.rdynamic = true;
