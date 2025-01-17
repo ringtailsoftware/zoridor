@@ -6,6 +6,8 @@ A terminal and web version of the [Quoridor](https://en.wikipedia.org/wiki/Quori
 
 Play on the web at https://ringtailsoftware.github.io/zoridor/
 
+Or play the WASM4 cart at https://ringtailsoftware.github.io/zoridor/cart.html
+
 ![](doc/demo.gif)
 
 Quoridor tutorials:
