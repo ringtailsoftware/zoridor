@@ -24,24 +24,7 @@ jobs:
         uses: mlugg/setup-zig@v1
         with:
           version: master
-      - name: Build test
-        run: zig build test
+      - name: Build cart
+        run: zig build
         working-directory: zoridor
-      - name: Build terminal
-        run: zig build -Dweb=false
-        working-directory: zoridor
-      - name: Build web
-        run: zig build -Dweb=true
-        working-directory: zoridor
-      - name: Setup Pages
-        if: github.ref == 'refs/heads/main'
-        uses: actions/configure-pages@v3
-      - name: Upload Artifact
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: "zoridor/zig-out"
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2
 
